@@ -1,0 +1,101 @@
+###############################################################################
+# Makefile generation aid (Makefile.in)
+#
+# Rycroft Group, Harvard SEAS
+#
+# Author : Nick Derr
+# Date   : Aug 1, 2019 (updates 08/07/20,)
+#
+# Uses the contents of the projects and libs variables (defined in main
+# Makefile) to generate dependencies and flags for compilation
+#
+# assumed to be defined:
+#
+# oflag      : optimization level flags
+# dflag      : debugging flags
+# execs      : list of executables
+# 
+# dependencies in other directories
+# ---------------------------------
+# projects   : list of keywords
+# *_dir      : root directory of each poject
+# *_make_args: any target keywords to pass to the recursive make call
+#
+# libraries in this directory
+# ---------------------------
+# libs       : list of keywords
+# *_objs     : object files to pack into library
+# *_flags    : flags for compiler for this library
+# 
+###############################################################################
+
+
+#### top level targets ####
+
+all: Makefile.dep
+	$(foreach pro,$(projects),$(MAKE) -C $($(pro)_dir) $($(pro)_make_args);)
+	$(MAKE) executables
+
+executables: $(execs)
+
+archives:=$(foreach l,$(libs),lib$l.a)
+objects:=$(foreach l,$(libs),$($(l)_objs))
+libraries: $(archives)
+
+depend: Makefile.dep
+
+clean:
+	rm -f $(execs) $(objects) $(archives)
+
+tidy:
+	rm -f $(objects) $(archives)
+
+.PHONY: clean all executables libraries depend
+
+###########################
+
+#### flag generation ####
+
+#########################
+
+
+
+#### dependency generation ####
+
+cc:=$(patsubst %.o,%.cc,$(objects))
+hh:=$(patsubst %.o,%.hh,$(objects))
+
+# check each .cc/.hh file is here
+# this is necessary because a missing file will break
+# the SECONDEXPANSION lib*.a wildcard dependency below
+$(foreach fn,$(cc),$(if $(wildcard $(fn)),,$(error $(fn) is missing)))
+
+cxx_dep=$(mpicxx) $(cflags) $(dflag) $(oflag) $(iflags) -MM
+
+
+Makefile.dep: $(cc) $(hh)
+	$(cxx_dep) $(cc) > $@
+
+-include Makefile.dep
+
+###############################
+
+
+
+
+#### defaults for object/library ####
+
+cxx_obj=$(mpicxx) $(cflags) $(dflag) $(oflag) $(iflags) -c $<
+pack_lib=rm -f $@; ar rs $@ $^
+
+# objects
+%.o: %.cc
+	$(cxx_obj) $(foreach l,$(libs),$(if $(findstring $@,$($(l)_objs)),$($(l)_flags)))
+
+# libraries
+.SECONDEXPANSION:
+lib%.a: $$($$*_objs)
+	$(if $($*_objs),$(pack_lib),\
+		$(error no $*_objs variable defined for making lib$*.a))
+
+#####################################

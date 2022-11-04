@@ -1,0 +1,42 @@
+###############################################################################
+# Active mixtures simulation makefile
+#
+# Rycroft Group, Harvard SEAS
+#
+# Author : Nick Derr
+# Date   : Aug 1, 2019
+#
+# Note: assumes DEBUG, REAL, c/i/xflags already defined
+#
+# Targets: all executables libraries depend clean
+###############################################################################
+
+# petsc info
+petsc_dir=/opt/petsc
+petsc_arch_real:=arch-linux-c-real
+petsc_arch_complex:=arch-linux-c-complex
+
+# are we debugging?
+ifeq ($(strip $(DEBUG)),1)
+	petsc_arch_real   :=$(petsc_arch_real)-debug
+	petsc_arch_complex:=$(petsc_arch_complex)-debug
+else
+	petsc_arch_real   :=$(petsc_arch_real)-opt
+	petsc_arch_complex:=$(petsc_arch_complex)-opt
+endif
+
+# define locations of real and complex petsc installs
+petsc_loc_real   =$(petsc_dir)/$(petsc_arch_real)
+petsc_loc_complex=$(petsc_dir)/$(petsc_arch_complex)
+
+# include this info in i,l,x flags
+iflags += -I$(petsc_dir)/include
+ifeq ($(strip $(REAL)),1)
+	iflags += -I$(petsc_loc_real)/include
+	lflags += -L$(petsc_loc_real)/lib
+	xflags += -Wl,-rpath $(petsc_loc_real)/lib
+else
+	iflags += -I$(petsc_loc_complex)/include
+	lflags += -L$(petsc_loc_complex)/lib
+	xflags += -Wl,-rpath $(petsc_loc_complex)/lib
+endif

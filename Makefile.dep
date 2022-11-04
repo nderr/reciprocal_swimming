@@ -1,0 +1,59 @@
+arg_helpers.o: arg_helpers.cc arg_helpers.hh
+col_writer.o: col_writer.cc col_writer.hh
+arg_manager.o: arg_manager.cc arg_manager.hh arg_helpers.hh col_writer.hh
+fem.o: fem.cc fem.hh /opt/petsc/include/petscksp.h \
+ /opt/petsc/include/petscpc.h /opt/petsc/include/petscmat.h \
+ /opt/petsc/include/petscvec.h /opt/petsc/include/petscsys.h \
+ /opt/petsc/arch-linux-c-complex-opt/include/petscconf.h \
+ /opt/petsc/arch-linux-c-complex-opt/include/petscfix.h \
+ /opt/petsc/include/petscsystypes.h \
+ /opt/petsc/include/petsccxxcomplexfix.h \
+ /opt/petsc/include/petscversion.h /opt/petsc/include/petscmath.h \
+ /opt/petsc/include/petscerror.h /opt/petsc/include/petscviewertypes.h \
+ /opt/petsc/include/petscoptions.h /opt/petsc/include/petsclog.h \
+ /opt/petsc/include/petsctime.h /opt/petsc/include/petscsftypes.h \
+ /opt/petsc/include/petscis.h /opt/petsc/include/petscsectiontypes.h \
+ /opt/petsc/include/petscistypes.h /opt/petsc/include/petscviewer.h \
+ /opt/petsc/include/petscdrawtypes.h /opt/petsc/include/petscdmtypes.h \
+ /opt/petsc/include/petscpctypes.h
+quad.o: quad.cc quad.hh
+poly.o: poly.cc poly.hh
+master.o: master.cc master.hh poly.hh quad.hh lapack.hh fem.hh \
+ /opt/petsc/include/petscksp.h /opt/petsc/include/petscpc.h \
+ /opt/petsc/include/petscmat.h /opt/petsc/include/petscvec.h \
+ /opt/petsc/include/petscsys.h \
+ /opt/petsc/arch-linux-c-complex-opt/include/petscconf.h \
+ /opt/petsc/arch-linux-c-complex-opt/include/petscfix.h \
+ /opt/petsc/include/petscsystypes.h \
+ /opt/petsc/include/petsccxxcomplexfix.h \
+ /opt/petsc/include/petscversion.h /opt/petsc/include/petscmath.h \
+ /opt/petsc/include/petscerror.h /opt/petsc/include/petscviewertypes.h \
+ /opt/petsc/include/petscoptions.h /opt/petsc/include/petsclog.h \
+ /opt/petsc/include/petsctime.h /opt/petsc/include/petscsftypes.h \
+ /opt/petsc/include/petscis.h /opt/petsc/include/petscsectiontypes.h \
+ /opt/petsc/include/petscistypes.h /opt/petsc/include/petscviewer.h \
+ /opt/petsc/include/petscdrawtypes.h /opt/petsc/include/petscdmtypes.h \
+ /opt/petsc/include/petscpctypes.h
+lapack.o: lapack.cc lapack.hh
+brinkman.o: brinkman.cc brinkman.hh quad.hh fem.hh \
+ /opt/petsc/include/petscksp.h /opt/petsc/include/petscpc.h \
+ /opt/petsc/include/petscmat.h /opt/petsc/include/petscvec.h \
+ /opt/petsc/include/petscsys.h \
+ /opt/petsc/arch-linux-c-complex-opt/include/petscconf.h \
+ /opt/petsc/arch-linux-c-complex-opt/include/petscfix.h \
+ /opt/petsc/include/petscsystypes.h \
+ /opt/petsc/include/petsccxxcomplexfix.h \
+ /opt/petsc/include/petscversion.h /opt/petsc/include/petscmath.h \
+ /opt/petsc/include/petscerror.h /opt/petsc/include/petscviewertypes.h \
+ /opt/petsc/include/petscoptions.h /opt/petsc/include/petsclog.h \
+ /opt/petsc/include/petsctime.h /opt/petsc/include/petscsftypes.h \
+ /opt/petsc/include/petscis.h /opt/petsc/include/petscsectiontypes.h \
+ /opt/petsc/include/petscistypes.h /opt/petsc/include/petscviewer.h \
+ /opt/petsc/include/petscdrawtypes.h /opt/petsc/include/petscdmtypes.h \
+ /opt/petsc/include/petscpctypes.h master.hh poly.hh lapack.hh \
+ /opt/petsc/include/petscdm.h /opt/petsc/include/petscfetypes.h \
+ /opt/petsc/include/petscdstypes.h /opt/petsc/include/petscdmlabel.h \
+ /opt/petsc/include/petscdmda.h /opt/petsc/include/petscdmdatypes.h \
+ /opt/petsc/include/petscpf.h /opt/petsc/include/petscao.h \
+ /opt/petsc/include/petscfe.h /opt/petsc/include/petscdt.h \
+ /opt/petsc/include/petscdmcomposite.h
