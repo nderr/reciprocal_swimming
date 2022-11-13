@@ -1119,7 +1119,6 @@ struct two_spheres: public brinkman {
 		for (int gj=0, gi_l=0, gi_r=(ump-1); gj<unp; gj++) {
 
 			// left and right nodes
-			// TODO should be able to do this smoother
 			node n_l(     (gj%po) * (po+1),  0, gj%po, gi_l + gj*ump, gi_l, gj);
 			node n_r(po + (gj%po) * (po+1), po, gj%po, gi_r + gj*ump, gi_r, gj);
 

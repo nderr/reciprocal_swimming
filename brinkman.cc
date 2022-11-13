@@ -1464,69 +1464,18 @@ two_spheres::two_spheres(two_spheres* par,dcomplex V,int type):
 	// if looking at Reynolds stress-only
 	if (type==0 || type==1){ 
 
-//		mesg("here\n");
-
-		// coord trafo
-//		trafo_base *ct_l,*ct_r;
-
 		// loop through boundary nodes
 		for(int gj=0,gi_l=0,gi_r=(ump-1);gj<unp;gj++) {
 
 			// grab left and right-sphere boundary nodes
 			node nl(0,0,0,gi_l+gj*ump,gi_l,gj);
 			node nr(0,0,0,gi_r+gj*ump,gi_r,gj);
-			/*
-
-			// left/right elements
-			element eu_l = gr_u(gi_l,gj);
-			element eu_r = gr_u(gi_r,gj);
-
-			// coord trafos
-			ct_l = dm->alloc_element_geometry(eu_l);
-			ct_r = dm->alloc_element_geometry(eu_r);
-
-			// coords
-			double xi_l = 0, xi_r = 1, et;
-
-
-//			element ep = gr_p(i,j);
-//			*/
 
 			// assign boundary velocities
 			dV_l[nl.gj] = par->steady_bvel(nl);
 			dV_r[nr.gj] = par->steady_bvel(nr);
 		}
-
-
-//		mesg("there\n");
-
-		// calc avg vels
-		/*
-		dcomplex aV_l = avg_vel(true);
-		dcomplex aV_r = avg_vel(false);
-		*/
-
-		// store avg vels
-		//		XXX ONLY IF tracking sphere motion!
-//		V_l.x = aV_l;
-//		V_r.x = aV_r;
-
-		// subtract off avg vels
-		/*
-		for (int gj=0;gj<unp; gj++) {
-			dV_l[gj].x -= aV_l;
-			dV_r[gj].x -= aV_r;
-
-//			dcomplex radial = dV_l[gj].x
-		}
-		*/
 	}
-
-//	if (type==0|| type==3) {
-//
-//		F_a = vcomplex::zero;
-//		F_a.x = par->osc_force(true) + par->osc_force(false);
-//	}
 }
 
 /**
@@ -1937,7 +1886,6 @@ dcomplex two_spheres::drag_force(bool left,bool approx) {
  * @param[in] br brinkman solution
  * @param[in] left whether the left sphere (right if false)
  *
- * TODO descr
  */
 dcomplex two_spheres::avg_vel(bool left) {
 
@@ -2900,7 +2848,6 @@ void petsc_solve::set_schur(const char* lu_type) {
 
 		add_opt("-fieldsplit_pre_pc_gamg_agg_nsmooths","0");
 		add_opt("-fieldsplit_pre_pc_gamg_agg_threshold","0.3");
-//		add_opt("-fieldsplit_pre_pc_gamg_asm_use_agg","true");
 
 		// GMRES + asm(ilu) as smoother
 		add_opt("-fieldsplit_pre_mg_levels_ksp_type","richardson");
@@ -2911,7 +2858,6 @@ void petsc_solve::set_schur(const char* lu_type) {
 		add_opt("-fieldsplit_pre_mg_coarse_pc_type","lu");
 
 
-//		add_opt("-fieldsplit_pre_mg_levels_sub_pc_type","ilu");
 		add_opt("-fieldsplit_pre_mg_levels_ksp_max_it","3");
 
 		// tols + opts
@@ -2928,11 +2874,9 @@ void petsc_solve::set_schur(const char* lu_type) {
 		add_opt("-fieldsplit_vel_pc_type","lu");
 	} else {
 
-		// fmgres+mg in velocity block
 		add_opt("-fieldsplit_vel_ksp_type","gmres");
 		add_opt("-fieldsplit_vel_pc_type","mg");
 		add_opt("-fieldsplit_vel_pc_mg_levels","7");
-//		add_opt("-fieldsplit_vel_pc_mg_galerkin");
 
 		add_opt("-fieldsplit_vel_mg_levels_ksp_type","richardson");
 		add_opt("-fieldsplit_vel_mg_levels_ksp_max_it","10");
@@ -2941,123 +2885,21 @@ void petsc_solve::set_schur(const char* lu_type) {
 		add_opt("-fieldsplit_vel_mg_coarse_ksp_monitor_true_residual");
 		add_opt("-fieldsplit_vel_mg_coarse_ksp_type","preonly");
 		add_opt("-fieldsplit_vel_mg_coarse_pc_type","lu");
-//		add_opt("-fieldsplit_vel_mg_levels_ksp_diagonal_scale");
-//		add_opt("-fieldsplit_vel_mg_levels_ksp_diagonal_scale_fix");
-//		add_opt("-fieldsplit_vel_mg_levels_sub_pc_type","ilu");
-//		add_opt("-fieldsplit_vel_mg_levels_pc_sor_its","1");
-//		add_opt("-fieldsplit_vel_mg_levels_pc_sor_type","forward");
-
-		// tols + opt2
 		add_opt("-fieldsplit_vel_ksp_rtol","1e-2");
-//		add_opt("-fieldsplit_vel_ksp_max_it","2");
-//		add_opt("-fieldsplit_vel_ksp_monitor_true_residual",NULL);
 	}
 
 }
-
-/*
-PetscErrorCode petsc_solve::calculate_BU(KSP ksp,Vec B,void *ctx) {
-
-//	VecDestroy(&B);
-
-
-	int rank;
-	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-
-
-	// grab brinkman
-	brinkman *par = static_cast<user_context*>(ctx)->prob;
-
-//	printf("success? %s\n",par==NULL?"false":"true");
-
-//	printf("%d %d %d\n",par->po,par->m,par->n);
-
-
-	int poly=par->po;
-
-	// get DM and system size
-	DM sys;
-	KSPGetDM(ksp,&sys);
-
-	ISLocalToGlobalMapping map;
-	DMGetLocalToGlobalMapping(sys,&map);
-
-	VecSetLocalToGlobalMapping(B,map);
-
-	int Mu,Nu,Mp,Np;
-	DMBoundaryType bx,by;
-	DMDAGetInfo(sys,NULL,
-		&Mu,&Nu,NULL,
-		NULL,NULL,NULL,
-		NULL,NULL,&bx,
-		&by,NULL,NULL);
-	bool xprd = bx==DM_BOUNDARY_PERIODIC;
-	bool yprd = by==DM_BOUNDARY_PERIODIC;
-
-	Mp = (xprd?Mu:(Mu-1))*(poly-1)/poly; if(!xprd) Mp++;
-	Np = (yprd?Nu:(Nu-1))*(poly-1)/poly; if(!yprd) Np++;
-
-	int cx,cy;
-	par->coarsen_factors(Mu,Nu,Mp,Np,cx,cy);
-	
-	// get coarser brinkman
-	brinkman *coarse = par->coarsen(cx,cy);
-
-	// get element range
-	int euai,eubi,euaj,eubj;
-	brinkman::dm_fe_range(sys,par->po,  euai,eubi,euaj,eubj);
-
-	for (int ej=euaj; ej<eubj; ej++) for (int ei=euai; ei<eubi; ei++) {
-
-		element eu(coarse->gr_u(ei,ej));// ep(coarse->gr_p(ei,ej));
-
-		coarse->add_BU(eu,sys,B);
-		coarse->add_Diri_Bu(eu,sys,B);
-		coarse->add_Diri_Bv(eu,sys,B);
-	}
-
-	VecAssemblyBegin(B);
-	VecAssemblyEnd(B);
-
-
-	for (int ej=euaj; ej<eubj; ej++) for (int ei=euai; ei<eubi; ei++) {
-
-		element eu(coarse->gr_u(ei,ej));// ep(coarse->gr_p(ei,ej));
-		coarse->fix_BU(eu,sys,B);
-	}
-
-	VecAssemblyBegin(B);
-	VecAssemblyEnd(B);
-
-
-
-	return 0;
-}
-*/
 
 PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 
 	VecZeroEntries(B);
 
-//	VecDestroy(&B);
-
 
 	int rank;
 	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-	/*
-	printf("B: I ran on %d\n",rank);
-	sleep(1);
-	*/
-
 	// grab brinkman
 	brinkman *par = static_cast<user_context*>(ctx)->prob;
-
-//	printf("success? %s\n",par==NULL?"false":"true");
-
-//	printf("%d %d %d\n",par->po,par->m,par->n);
-
-
 
 	// get DM and system size
 	DM sys,vel,pre;
@@ -3079,7 +2921,6 @@ PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 
 	// split vec into vel and pressure
 	Vec Bu,Bp;
-//	DMCompositeGetAccess(sys,B,&Bu,&Bp);
 	VecGetSubVector(B,iss[0],&Bu);
 	VecGetSubVector(B,iss[1],&Bp);
 
@@ -3088,7 +2929,6 @@ PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 
 	DMDALocalInfo inf;
 	DMDAGetLocalInfo(pre,&inf);
-//	printf("called for %d x %d pressure grid\n",inf.mx,inf.my);
 
 	int Mu,Nu,Mp,Np;
 	DMDAGetInfo(vel,NULL,
@@ -3117,14 +2957,6 @@ PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 	}
 
 
-	/*
-	printf("P: [%d,%d) x [%d,%d)\n"
-			"U: [%d,%d) x [%d,%d)\n",
-			epai,epbi,epaj,epbj,euai,eubi,euaj,eubj);
-	MPI_Barrier(PETSC_COMM_WORLD);
-	bail(0,"done");
-	*/
-
 	for (int ej=euaj; ej<eubj; ej++) for (int ei=euai; ei<eubi; ei++) {
 
 		element eu(coarse->gr_u(ei,ej)), ep(coarse->gr_p(ei,ej));
@@ -3139,8 +2971,6 @@ PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 	VecAssemblyBegin(Bp);
 	VecAssemblyEnd(Bp);
 	VecAssemblyEnd(Bu);
-
-	///DMCompositeRestoreAccess(sys,B,&Bu,&Bp);
 
 	VecRestoreSubVector(B,iss[0],&Bu);
 	VecRestoreSubVector(B,iss[1],&Bp);
@@ -3161,7 +2991,6 @@ PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 	VecAssemblyBegin(Bu);
 	VecAssemblyEnd(Bu);
 
-	//DMCompositeRestoreAccess(sys,B,&Bu,&Bp);
 	VecRestoreSubVector(B,iss[0],&Bu);
 
 
@@ -3172,140 +3001,6 @@ PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 
 	return 0;
 }
-
-/*
-PetscErrorCode petsc_solve::calculate_AU(KSP ksp,Mat A,Mat P,void *ctx) {
-
-//	printf("A=%p, P=%p\n",A,P);
-
-	int rank;
-	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-
-//	printf("A: I ran on %d\n",rank);
-
-
-
-//	MatSetOption(A,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);
-
-
-	// grab brinkman
-	brinkman *par = static_cast<user_context*>(ctx)->prob;
-
-//	printf("success? %s\n",par==NULL?"false":"true");
-
-//	printf("%d %d %d\n",par->po,par->m,par->n);
-
-
-	int poly = par->po;
-
-	// get DM and system size
-	DM sys;
-	KSPGetDM(ksp,&sys);
-
-	DMDALocalInfo inf;
-	DMDAGetLocalInfo(sys,&inf);
-//	printf("called for %d x %d pressure grid\n",inf.mx,inf.my);
-
-	int Mu,Nu,Mp,Np;
-	DMBoundaryType bx,by;
-	DMDAGetInfo(sys,NULL,
-		&Mu,&Nu,NULL,
-		NULL,NULL,NULL,
-		NULL,NULL,&bx,
-		&by,NULL,NULL);
-	bool xprd = bx==DM_BOUNDARY_PERIODIC;
-	bool yprd = by==DM_BOUNDARY_PERIODIC;
-
-	Mp = (xprd?Mu:(Mu-1))*(poly-1)/poly; if(!xprd) Mp++;
-	Np = (yprd?Nu:(Nu-1))*(poly-1)/poly; if(!yprd) Np++;
-
-	int cx,cy;
-	par->coarsen_factors(Mu,Nu,Mp,Np,cx,cy);
-	
-	// get coarser brinkman
-	brinkman *coarse = par->coarsen(cx,cy);
-
-	int &lu(coarse->lu);
-
-	MatMPIAIJSetPreallocation(A,4*(2*lu),NULL,4*(2*lu),NULL);
-	MatSeqAIJSetPreallocation(A,4*(2*lu),NULL);
-	MatSetUp(A);
-
-//	MatMPIAIJSetPreallocation(P,4*(2*lu+lp),NULL,4*(2*lu+lp),NULL);
-//	MatSeqAIJSetPreallocation(P,4*(2*lu+lp),NULL);
-//	MatSetUp(P);
-
-	// get element range
-	int euai,eubi,euaj,eubj;
-//	int epai,epbi,epaj,epbj;
-	brinkman::dm_fe_range(sys,par->po,  euai,eubi,euaj,eubj);
-//	brinkman::dm_fe_range(pre,par->po-1,epai,epbi,epaj,epbj);
-
-//	printf("U ai=%d, bi=%d, aj=%d, bj=%d\n",euai,eubi,euaj,eubj);
-//	printf("P ai=%d, bi=%d, aj=%d, bj=%d\n",epai,epbi,epaj,epbj);
-
-//	Mat Auu,Aup,Apu,App,Puu,Pup,Ppu,Ppp;
-
-//	MatGetLocalSubMatrix(A,lis[0],lis[0],&Auu);
-//	MatGetLocalSubMatrix(A,lis[0],lis[1],&Aup);
-//	MatGetLocalSubMatrix(A,lis[1],lis[0],&Apu);
-//	MatGetLocalSubMatrix(A,lis[1],lis[1],&App);
-
-	for (int ej=euaj; ej<eubj; ej++) for (int ei=euai; ei<eubi; ei++) {
-
-		element eu(coarse->gr_u(ei,ej));//, ep(coarse->gr_p(ei,ej));
-
-		coarse->add_Auu(eu,sys,A);
-		coarse->add_Avv(eu,sys,A);
-
-//		coarse->add_Auu(eu,vel,Puu);
-//		coarse->add_Avv(eu,vel,Puu);
-
-//		coarse->add_Auvp(eu,ep,vel,pre,Aup,Apu);
-//		coarse->add_Auvp(eu,ep,vel,pre,Pup,Ppu);
-
-//		coarse->add_Ppp(ep,pre,Ppp);
-	}
-
-//	MatRestoreLocalSubMatrix(A,lis[0],lis[0],&Auu);
-//	MatRestoreLocalSubMatrix(A,lis[0],lis[1],&Aup);
-//	MatRestoreLocalSubMatrix(A,lis[1],lis[0],&Apu);
-//	MatRestoreLocalSubMatrix(A,lis[1],lis[1],&App);
-
-	MatAssemblyBegin(A,MAT_FLUSH_ASSEMBLY);
-	MatAssemblyEnd(A,MAT_FLUSH_ASSEMBLY);
-
-//	MPI_Barrier(PETSC_COMM_WORLD);
-
-//	MatGetLocalSubMatrix(A,lis[0],lis[0],&Auu);
-//	MatGetLocalSubMatrix(A,lis[1],lis[1],&App);
-	for (int ej=euaj; ej<eubj; ej++) for (int ei=euai; ei<eubi; ei++) {
-
-		element eu(coarse->gr_u(ei,ej));// ep(coarse->gr_p(ei,ej));
-
-//		std::vector<int> ip(coarse->lp);
-//		coarse->get_p_local_indices(ep,pre,ip.data());
-//		for (node n:ep) {
-//			dcomplex zero(0);
-//			MatSetValuesLocal(App,1,&ip[n.l],1,&ip[n.l],&zero,INSERT_VALUES);
-//		}
-
-		coarse->fix_AUU(eu,sys,A);
-	}
-
-//	MatRestoreLocalSubMatrix(A,lis[1],lis[1],&App);
-//	MatRestoreLocalSubMatrix(A,lis[0],lis[0],&Auu);
-//	MatRestoreLocalSubMatrix(P,lis[0],lis[0],&Puu);
-//	MatRestoreLocalSubMatrix(P,lis[1],lis[0],&Pup);
-//	MatRestoreLocalSubMatrix(P,lis[0],lis[1],&Ppu);
-//	MatRestoreLocalSubMatrix(P,lis[1],lis[1],&Ppp);
-
-	MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);
-	MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);
-
-	return 0;
-}
-*/
 
 PetscErrorCode petsc_solve::calculate_p_mass(KSP ksp,Mat &P,void *ctx) {
 
@@ -3831,20 +3526,14 @@ void brinkman::read(petsc_solve &solver,Vec X) {
 		// vel and pres parts
 		Vec Xu,Xp,Xun,Xpn;
 
-//		mesg("grabbing sub vecs\n");
-
 		// grab global vectors (these are ordered globally)
-//		DMCompositeGetAccess(da_sys,X,&u,&Xp);
 		VecGetSubVector(X,gis[0],&Xu);
 		VecGetSubVector(X,gis[1],&Xp);
-
-//		mesg("creating natural vecs\n");
 
 		// create vectors for natural ordering
 		DMDACreateNaturalVector(vel,&Xun);
 		DMDACreateNaturalVector(pre,&Xpn);
 
-//		mesg("global -> natural\n");
 
 		// scatter into natural odering
 		DMDAGlobalToNaturalBegin(vel,Xu,INSERT_VALUES,Xun);
@@ -3852,19 +3541,16 @@ void brinkman::read(petsc_solve &solver,Vec X) {
 		DMDAGlobalToNaturalEnd(  pre,Xp,INSERT_VALUES,Xpn);
 		DMDAGlobalToNaturalEnd(  vel,Xu,INSERT_VALUES,Xun);
 
-//		mesg("set up scatters\n");
-
 		// now set up scatters to all procs
 		VecScatter scat_u,scat_p;
 		VecScatterCreateToAll(Xun,&scat_u,&Xug);
 		VecScatterCreateToAll(Xpn,&scat_p,&Xpg);
-//		mesg("do scatters\n");
+
 		VecScatterBegin(scat_u,Xun,Xug,INSERT_VALUES,SCATTER_FORWARD);
 		VecScatterBegin(scat_p,Xpn,Xpg,INSERT_VALUES,SCATTER_FORWARD);
 		VecScatterEnd(  scat_p,Xpn,Xpg,INSERT_VALUES,SCATTER_FORWARD);
 		VecScatterEnd(  scat_u,Xun,Xug,INSERT_VALUES,SCATTER_FORWARD);
 
-//		mesg("cleaning up\n");
 
 		// clean up
 		VecDestroy(&Xun);
@@ -3893,12 +3579,10 @@ void brinkman::read(petsc_solve &solver,Vec X) {
 	VecRestoreArray(Xpg,&xp);
 
 	if (size == 1) {
-		//DMCompositeRestoreAccess(da_sys,X,&Xug,&Xpg);
 		VecRestoreSubVector(X,gis[0],&Xug);	
 		VecRestoreSubVector(X,gis[1],&Xpg);	
 	} else {
 
-//		mesg("last cleanup\n");
 		VecDestroy(&Xug);
 		VecDestroy(&Xpg);
 	}
@@ -3907,74 +3591,6 @@ void brinkman::read(petsc_solve &solver,Vec X) {
 	ISDestroy(&gis[1]);
 	PetscFree(gis);
 }
-
-/**
- * Calculate and tabulate the number of nonzero
- * entries in each row of the problem matrix
- *
- * @param[out] nnz array of nonzero counts per row
- * @param[in] whether this is for the preconditioner
- */
-/*
-void brinkman::count_nonzeros(int *nnz,bool pre) {
-
-	// initialize counts to zero and set
-	for(int i=0;i<2*gu+gp;i++) nnz[i]=0;
-	std::set<std::pair<int,int> > counted;
-
-	// loop through elements
-	for (element eu:gr_u) {
-
-		// check each vel node, loop through cols
-		for (node nr:eu) {
-
-			for (node nc:eu) {
-
-				// count each row/col pair
-				std::pair<int,int> p1(nr.g   ,nc.g   );
-				std::pair<int,int> p2(nr.g+gu,nc.g+gu);
-				counted.insert(p1);
-				counted.insert(p2);
-			}
-
-			for (node nc:gr_p(eu.i,eu.j)) {
-
-				// count each row/col pair
-				std::pair<int,int> p1(nr.g   ,nc.g+2*gu);
-				std::pair<int,int> p2(nr.g+gu,nc.g+2*gu);
-				counted.insert(p1);
-				counted.insert(p2);
-			}
-		}
-
-		// check each pressure node
-		for (node nr:gr_p(eu.i,eu.j)) {
-
-			// only check pres/pres nodes if doing preconditioner
-			if (pre) for (node nc:gr_p(eu.i,eu.j)) {
-
-				std::pair<int,int> p(nr.g+2*gu,nc.g+2*gu);
-				counted.insert(p);
-			} else {
-				std::pair<int,int> p(nr.g+2*gu,nr.g+2*gu);
-				counted.insert(p);
-			}
-
-			for (node nc:eu) {
-
-				// count each row/col pair for vels
-				std::pair<int,int> p1(nr.g+2*gu,   nc.g);
-				std::pair<int,int> p2(nr.g+2*gu,nc.g+gu);
-				counted.insert(p1);
-				counted.insert(p2);
-			}
-		}
-	}
-
-	// each unique member of set is one nonzero
-	for (std::pair<int,int> p : counted) nnz[p.first]++;
-}
-*/
 
 /**
  * generalized gp quad output
