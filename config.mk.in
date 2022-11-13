@@ -1,0 +1,57 @@
+###############################################################################
+# Reciprocal swimming config file
+#
+# Author : Nick Derr
+# Date   : Nov 12, 2022
+#
+# The C++ library in this repository was developed to calculate the steady
+# flow arising from low-amplitude reciprocal swimming. It requires the
+# installation of PETSc (for simulation) and gnuplot-iostream (for
+# visualization.)
+#
+# Each of the variables below must be set to the following:
+#
+# petsc_dir: absolute path to the main petsc directory
+# petsc_arch_complex_debug: absolute path to PETSc libraries compiled with
+#   complex variables and debug flags
+# petsc_arch_complex_opt: absolute path to PETSc libraries compiled with
+#   complex variables and optimized flags
+#
+# gnuplot-iostream: absolute path to gnuplot-iostream.h, a header-only C++
+#   interface to the gnuplot plotting utility written by Dan Stahlke
+#
+# Targets: all executables libraries depend clean
+###############################################################################
+
+# for many PETSc installations, petsc_dir will be equal to the
+# PETSC_DIR environment variable used when PETSc was compiled)
+petsc_dir=/path/to/petsc/home/directory
+
+# for many PETSc installations, petsc_dir will be equal to the
+# value $PETSC_DIR/$PETSC_ARCH for the values of those two environment
+# variables used when PETSc was compiled
+#
+# ..._debug requires a PETSc installation with debug flags
+# ..._opt should point to an optimized PETSc installation
+petsc_arch_complex_debug=/path/to/compiled/debug/petsc
+petsc_arch_complex_opt=/path/to/compiled/opt/petsc
+
+# gnuplot-iostream can be cloned from github
+# gnuplot_io_loc should point to the cloned repository,
+# which contains the header file
+gnuplot_io_loc=/path/to/gnuplot/iostream/header
+
+# paths to the include/ and lib/ directories containing
+# a GSL installation
+gsl_I=/path/to/gsl/include/dir
+gsl_L=/path/to/gsl/lib/dir
+
+# path to the lib/ directory containing the BLAS installation
+# of choice. Replace -lBLASFLAG with the appropriate library
+# name, e.g. -lopenblas for OpenBLAS
+blas_L=/path/to/blas/lib/dir
+blas_lflag=-lBLASFLAG
+
+# path to the boost include/ and lib/ directories 
+boost_I=/usr/include
+boost_L=/usr/lib

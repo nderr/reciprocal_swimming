@@ -1,3 +1,11 @@
+///////////////////////////////////////////////////////////////////////////////
+// arg_manager.cc
+//
+// The arg_manager class is used to read in and parse C++ command-line args
+//
+// Nick Derr, Nov 12, 2022
+///////////////////////////////////////////////////////////////////////////////
+
 #include "arg_manager.hh"
 #include <ctype.h>
 
@@ -432,6 +440,9 @@ void arg_manager::process_args() {
 	process_reqs();
 }
 
+/**
+ * Processes required (positional) arguments.
+ */
 void arg_manager::process_reqs() {
 
 	if (!args_good) {
