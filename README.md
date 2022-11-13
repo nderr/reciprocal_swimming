@@ -18,3 +18,15 @@ Dependencies for visualization
 1. Clone the repository
 2. Copy the file config.mk.in to config.mk
 3. Edit the contents of config.mk to correspond to the the system locations of the above dependencies
+
+### Building
+After navigating into the repository and creating/editing config.mk as described above, "make" will build the executables. If you're only interested in building the simulation code, you can type "make solves" to build the solver without the visualization tools (avoiding the need to install their dependencies.) Similarly, "make stats" will build only the visualization tools.
+
+### Running
+(More detail on running the code will be added soon.)
+
+To solve a system with separation distance S, left sphere radius lr, right sphere radius rr, and inertial parameter M^2, run
+
+mpirun -np num_procs swim_steady -S S -R lr -r rr -M M^2 -o output_directory m p
+
+This will solve the system over a 2m x m grid of finite elements of polynomial order p for the velocities and p-1 for the pressures.
