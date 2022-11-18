@@ -28,7 +28,7 @@ REAL:=0
 
 # executables
 solves:=swim_steady
-stats:=gen_gp trac_plot vel_plot
+stats:=gen_gp
 execs:=$(solves) $(stats)
 
 # libraries comprising this project
@@ -47,7 +47,6 @@ stokes_flags=-lgsl
 #####################################
 
 # put together base flags
-mpicxx=mpic++
 cflags=-std=c++17 -fopenmp
 iflags:=
 lflags:=-L.

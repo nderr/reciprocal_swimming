@@ -55,3 +55,6 @@ blas_lflag=-lBLASFLAG
 # path to the boost include/ and lib/ directories 
 boost_I=/usr/include
 boost_L=/usr/lib
+
+# MPI compiler wrappers
+mpicxx=mpic++

@@ -167,16 +167,8 @@ int main(int argc,char **argv) {
 			 */
 
 
-	mesg("%010.8f %010.8f %010.8f %010.8f %010.8f %010.8f %010.8f %010.8f %010.8f "
-		 "%010.8f %010.8f %010.8f %010.8f %010.8f %010.8f %010.8f %010.8f\n",
-			M_sq,rho_l,rho_r,
-			std::real(Us),std::imag(Us),
-			std::real(Ul),std::imag(Ul),
-			std::real(Ur),std::imag(Ur),
-			std::real(F_s_l),std::imag(F_s_l),
-			std::real(F_s_r),std::imag(F_s_r),
-			std::real(F_drag_1),std::imag(F_drag_1),
-			std::real(F_drag_2),std::imag(F_drag_2)
+	mesg("%010.8f %010.8f %010.8f %010.8f\n",
+			M_sq,rho_l,rho_r,std::real(Us)
 			);
 
 	// clean up PETSC datatypes
