@@ -28,7 +28,7 @@ To solve a system with separation distance S, left sphere radius lr, right spher
 mpirun -np num_procs swim_steady -s S -R lr -r rr -M M^2 -o output_directory m p
 
 to solve the system over a 2m x m bispherical grid of finite elements. The velocity elements are of polynomial order p, and the pressure elements are of order p-1. The code will print to stdout:
-- the provided M^2 valu
+- the provided M^2 value
 - the density of the left sphere
 - the density of the right sphere
 - the resulting steady swim speed
