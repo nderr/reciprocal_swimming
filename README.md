@@ -36,4 +36,4 @@ to solve the system over a 2m x m bispherical grid of finite elements. The veloc
 Run "./swim_steady -h" for a short help message and "./swim_steady -H" for more documentation on option parameters. Within the output directory, the Brinkman and Stokes flow fields will also be saved as binary files. The executable "./gen_gp" can be used to read in these files and construct heat maps of the Stokes vorticity field with overlaid streamlines.
 
 ### Contact
-For questions about the code or the 
+For questions, contact [Nick Derr](https://www.nickderr.me).
