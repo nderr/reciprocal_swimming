@@ -38,11 +38,7 @@ The command `mpirun -np 4 swim_steady -s 3 -R 0.5 -r 1 -M 10 -o out 64 3` produc
 
 and the command `./gen_gp -o figure -A 12 -I -P 800 -T 100 -d 0.001 -X 12 -Y 12 -q vel -s w -p r out_s.bin` 
 
-produces the following image:
-
-![steady flow field](./figure.pdf)
-
-which is 800 pixels across and contains 12 columns of streamlines. Its horizontal and vertical coordinate widths are both 12. Color denotes vorticity of the steady Stokes flow field, which the streamlines are derived from. The streamlines are integrated for dimensionless time T=100, using a local error tolerance of 0.001 for adaptive timestepping. (The lines become smoother as `-d` takes a smaller and smaller value.)
+produces the image ![figure.pdf](./figure.pdf), which is 800 pixels across and contains 12 columns of streamlines. Its horizontal and vertical coordinate widths are both 12. Color denotes vorticity of the steady Stokes flow field, which the streamlines are derived from. The streamlines are integrated for dimensionless time T=100, using a local error tolerance of 0.001 for adaptive timestepping. (The lines become smoother as `-d` takes a smaller and smaller value.)
 
 Note that on some machines it may be required to set `OMP_NUM_THREADS=1` when running `swim_steady`.
 
