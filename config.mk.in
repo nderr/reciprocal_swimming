@@ -58,7 +58,7 @@ blas_lflag=-lBLASFLAG
 # multi-threaded versions installed
 boost_I=/path/to/boost/include
 boost_L=/path/to/boost/lib
-boost_lflag=-lboost_iostreams -lboost_fileystem
+boost_lflags=-lboost_iostreams -lboost_fileystem
 
 # path to Eigen include/ and lib/
 eigen_I=/path/to/eigen3/include
