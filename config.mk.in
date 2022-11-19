@@ -53,8 +53,12 @@ blas_L=/path/to/blas/lib/dir
 blas_lflag=-lBLASFLAG
 
 # path to the boost include/ and lib/ directories 
-boost_I=/usr/include
-boost_L=/usr/lib
+boost_I=/path/to/boost/include
+boost_L=/path/to/boost/lib
+
+# path to Eigen include/ and lib/
+eigen_I=/path/to/eigen3/include
+eigen_L=/path/to/eigen3/lib
 
 # MPI compiler wrappers
 mpicxx=mpic++

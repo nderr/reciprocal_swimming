@@ -1,3 +1,11 @@
+///////////////////////////////////////////////////////////////////////////////
+// fem.cc
+//
+// implementations for functions re: the finite element method over
+// logically rectangular grids on arbitrary geometries via coordinate
+// transformation functions
+///////////////////////////////////////////////////////////////////////////////
+
 #include "fem.hh"
 
 // elements
@@ -261,8 +269,6 @@ void cartesian_grid::trafo_geom::Jinv(double xi,double et,double &xi_x,
 	xi_y = xi_x_i*x_i_y;
 	et_y = et_y_i*y_i_y;
 
-//	printf("xi_x_i: %g, x_i_x: %g, xi_x: %g\n",xi_x_i,x_i_x,xi_x);
-//	printf("et_y_i: %g, y_i_x: %g, et_x: %g\n",et_y_i,y_i_x,et_x);
 }
 
 /** get inverse Jacobean at (xi,eta) */
@@ -286,8 +292,6 @@ void cartesian_grid::trafo_geom::Jinv2(double xi,double et,
 	xi_xy = xi_x_i * x_i_xy; et_xy = et_y_i * y_i_xy;
 	xi_yy = xi_x_i * x_i_yy; et_yy = et_y_i * y_i_yy;
 
-//	printf("xi_x_i: %g, x_i_x: %g, xi_x: %g\n",xi_x_i,x_i_x,xi_x);
-//	printf("et_y_i: %g, y_i_x: %g, et_x: %g\n",et_y_i,y_i_x,et_x);
 }
 
 /** get inverse Jacobean at (xi,eta) */
@@ -309,10 +313,6 @@ void cartesian_grid::trafo_geom::Jinv_det(double xi,double et,
 			x_i_x_et,y_i_x_et,x_i_y_et,y_i_y_et);
 
 	// ...chain rule
-	//xi_x = xi_x_i*x_i_x;
-	//et_x = et_y_i*y_i_x;
-	//xi_y = xi_x_i*x_i_y;
-	//et_y = et_y_i*y_i_y;
 	xi_x_xi = xi_x_i * x_i_x_xi;
 	et_x_xi = et_y_i * y_i_x_xi;
 	xi_y_xi = xi_x_i * x_i_y_xi;

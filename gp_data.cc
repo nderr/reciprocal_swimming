@@ -53,12 +53,6 @@ gp_data::scalar gp_data::read_scalar(const std::string &str) {
 	else if (str=="w")     return scalar::vort;
 	else if (str=="d")     return scalar::div;
 	else if (str=="none")  return scalar::none;
-	else if (str=="err")   return scalar::err;
-	else if (str=="err_x")   return scalar::err_x;
-	else if (str=="err_y")   return scalar::err_y;
-	else if (str=="err_xx")   return scalar::err_xx;
-	else if (str=="err_xy")   return scalar::err_xy;
-	else if (str=="err_yy")   return scalar::err_yy;
 
 	std::cerr << "bad scalar code " << str << std::endl;
 	exit(-1);
@@ -170,45 +164,6 @@ double gp_data::hm_val(const scalar &s,double x,double y) {
 		case scalar::vort:  v = br->get_w(x,y);  break;
 		case scalar::div:   v = br->get_d(x,y);  break;
 
-		case scalar::err:
-		case scalar::err_x:
-		case scalar::err_y:
-		case scalar::err_xx:
-		case scalar::err_xy:
-		case scalar::err_yy:
-
-			// get fields
-			br->get_u_derivs(x,y,ux_v,ux_x,ux_y,ux_xx,ux_xy,ux_yy);
-			br->get_v_derivs(x,y,uy_v,uy_x,uy_y,uy_xx,uy_xy,uy_yy);
-			ts->brink_derivs(x,y,ux_k_v,ux_k_x,ux_k_y,ux_k_xx,ux_k_xy,ux_k_yy,
-					uy_k_v,uy_k_x,uy_k_y,uy_k_xx,uy_k_xy,uy_k_yy);
-
-			switch (s) {
-				case scalar::err:
-					v = std::real((ux_v-ux_k_v) * std::conj(ux_v-ux_k_v)
-							+ (uy_v-uy_k_v) * std::conj(uy_v-uy_k_v)); break;
-				case scalar::err_x:
-					v = std::real((ux_x-ux_k_x) * std::conj(ux_x-ux_k_x)
-							+ (uy_x-uy_k_x) * std::conj(uy_x-uy_k_x)); break;
-				case scalar::err_y:
-					v = std::real((ux_y-ux_k_y) * std::conj(ux_y-ux_k_y)
-							+ (uy_y-uy_k_y) * std::conj(uy_y-uy_k_y)); break;
-				case scalar::err_xx:
-					v = std::real((ux_xx-ux_k_xx) * std::conj(ux_xx-ux_k_xx)
-							+ (uy_xx-uy_k_xx) * std::conj(uy_xx-uy_k_xx)); break;
-				case scalar::err_xy:
-					v = std::real((ux_xy-ux_k_xy) * std::conj(ux_xy-ux_k_xy)
-							+ (uy_xy-uy_k_xy) * std::conj(uy_xy-uy_k_xy)); break;
-				case scalar::err_yy:
-					v = std::real((ux_yy-ux_k_yy) * std::conj(ux_yy-ux_k_yy)
-							+ (uy_yy-uy_k_yy) * std::conj(uy_yy-uy_k_yy)); break;
-				default:
-					fputs("bad program flow\n",stderr);
-					exit(-1);
-			}
-
-			break;
-
 		default:
 			fputs("bad scalar value\n",stderr);
 			exit(-1);
@@ -259,7 +214,6 @@ mat gp_data::quiver_mat(const vector &f,int m,int n,double sp) {
 
 			// velocity magnitude
 			double umag = sqrt(uu*uu + vv*vv);
-//			printf("%g %g %g %g\n",xx,yy,uu,vv);
 			uu *= sp*dx/umag;
 			vv *= sp*dx/umag;
 

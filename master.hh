@@ -1,3 +1,9 @@
+///////////////////////////////////////////////////////////////////////////////
+// master.hh
+//
+// represents a master element for the finite element method
+///////////////////////////////////////////////////////////////////////////////
+
 #ifndef MASTER_HH
 #define MASTER_HH
 
@@ -240,8 +246,6 @@ class master {
 	void eval(trafo_base &ct,double xi,double et,T *dat,T &v,T &v_x,T &v_y,
 			T &v_xx,T &v_xy,T &v_yy,bool pr=false) {
 
-//		if (pr) for(int i=0;i<n;i++) printf("v[%d]=%g + i*%g\n",i,std::real(dat[i]),std::imag(dat[i]));
-
 		// out vals + Lagrange poly vals
 		v = v_x = v_y = v_xx = v_xy = v_yy = 0;
 		double L,L_xi,L_et,L_xi_xi,L_xi_et,L_et_et;
@@ -277,9 +281,6 @@ class master {
 			v_yy += (L_xi * xi_yy + L_et * et_yy + L_xi_xi * xi_y * xi_y
 					+ L_et_et * et_y * et_y + 2 * L_xi_et * xi_y * et_y) * d;
 
-//.			if (pr) printf("cxx[%d]=%g\n",l,
-//(L_xi * xi_xx + L_et * et_xx + L_xi_xi * xi_x * xi_x
-//					+ L_et_et * et_x * et_x + 2 * L_xi_et * xi_x * et_x)
 		}
 	}
 

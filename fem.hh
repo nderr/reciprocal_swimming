@@ -1,3 +1,11 @@
+///////////////////////////////////////////////////////////////////////////////
+// fem.hh
+//
+// a collection of structs for implementing the finite element method over
+// logically rectangular grids on arbitrary geometries via coordinate
+// transformation functions
+///////////////////////////////////////////////////////////////////////////////
+
 #ifndef FEM_HH
 #define FEM_HH
 
@@ -112,7 +120,6 @@ struct element {
 			}
 			if (n.gi == um()) {
 				n.gi=0;
-//				printf("PERIODIC I\n");
 			}
 
 			// check vertical index
@@ -123,7 +130,6 @@ struct element {
 			}
 			if (n.gj == un()) {
 				n.gj=0;
-//				printf("PERIODIC J\n");
 			}
 		}
 
@@ -688,7 +694,6 @@ struct cartesian_grid: public domain {
 	 */
 	cartesian_grid(int m,int n,double ax_,double bx_,double ay_,double by_):
 		ax(ax_),ay(ay_),bx(bx_),by(by_),ex((bx_-ax_)/m),ey((by_-ay_)/n) {
-//		printf("[%g,%g]x[%g,%g] (%g,%g)\n",ax,bx,ay,by,ex,ey);
 	}
 
 	/**
@@ -706,15 +711,11 @@ struct cartesian_grid: public domain {
 		/** constructor explicitly setting each class member */
 		linear_geom(element e_,double aex_,double aey_,double dx_,double dy_):
 			e(e_),aex(aex_),aey(aey_),dx(dx_),dy(dy_) {
-//				printf("(%d,%d), ax=%g, ay=%g, dx=%g, dy=%g\n",
-//						e.i,e.j,aex,aey,dx,dy);
 		}
 
 		/** constructor pulling information from parent cartesian_grid */
 		linear_geom(cartesian_grid &p,element &e_):
 			e(e_),aex(p.ax+e.i*p.ex),aey(p.ay+e.j*p.ey),dx(p.ex),dy(p.ey) {
-//				printf("(%d,%d), ax=%g, ay=%g, dx=%g, dy=%g\n",
-//						e.i,e.j,aex,aey,dx,dy);
 			}
 
 		/** get real coordinates (x,y) at master coordinates (xi,eta) */
@@ -726,10 +727,7 @@ struct cartesian_grid: public domain {
 		void Jinv(double xi,double et,double &xi_x,
 			double &et_x,double &xi_y,double &et_y) const
 			{
-		//		printf("(%d,%d), ax=%g, ay=%g, dx=%g, dy=%g\n",
-		//				e.i,e.j,aex,aey,dx,dy);
 				xi_x=1./dx;et_x=0;xi_y=0;et_y=1./dy;
-		//		printf("%g %g %g %g\n",xi_x,et_x,xi_y,et_y);
 			}
 		void Jinv2(double xi,double et,
 			double &xi_xx, double &xi_xy, double &xi_yy,
@@ -1115,7 +1113,6 @@ struct polar_half_plane: public cartesian_grid, public trafo_base {
 	/** get real coordinates (x,y) at master coordinates (xi,eta) */
 	void xi2x(double xi,double eta,double &x,double &y) const {
 		double c = cos(eta);
-//		double s = eta==M_PI?(+0):sin(eta);
 		double s = sin(eta);
 
 		x = a*exp(xi)*c; y = a*exp(xi)*s;}
@@ -1126,7 +1123,6 @@ struct polar_half_plane: public cartesian_grid, public trafo_base {
 		 double &xi_x,double &et_x,double &xi_y,double &et_y) const {
 
 		double c = cos(eta);
-//		double s = eta==M_PI?(+0):sin(eta);
 		double s = sin(eta);
 
 		double fac = ai * exp(-xi);
@@ -1147,8 +1143,6 @@ struct polar_half_plane: public cartesian_grid, public trafo_base {
 
 		// radial dist
 		double r = sqrt(x*x+y*y);
-
-//		if (y==0) y=(+0);
 		
 		xi  = log(r * ai);
 		eta = atan2(y,x);
@@ -1233,7 +1227,6 @@ struct bipolar_half_plane: public xsplit_grid_new, public trafo_base {
 	void xi2x(double xi,double eta,double &x,double &y) const {
 		x = a*h(xi,eta)*sinh(xi);y = a*h(xi,eta)*sin(eta);}
 	/** get determinant of the Jacobean at master coords (xi,eta) */
-	// XXX minus sign?
 	double Jdet(double xi,double eta) const
 		{double hh=h(xi,eta); return a*a*hh*hh;}
 	/** get inverse Jacobean at (xi,eta) */
@@ -1242,8 +1235,6 @@ struct bipolar_half_plane: public xsplit_grid_new, public trafo_base {
 		et_y = -(xi_x = (1-cos(eta)*cosh(xi))/a);
 		xi_y =   et_x =   -sin(eta)*sinh(xi) /a;
 
-//		printf("xi=%g, eta=%g, sin(eta)=%g, sinh(xi)=%g, a=%g, et_x=xi_y=%g\n",
-//				xi,eta,sin(eta),sinh(xi),a,et_x,xi_y);
 	}
 	void Jinv2(double xi,double et,
 		double &xi_xx, double &xi_xy, double &xi_yy,
@@ -1361,7 +1352,6 @@ struct cylindrical: public domain {
 			t->xi2x(xi,eta,x,y);
 			// PI -> 2PI
 			double v=M_PI*t->Jdet(xi,eta) * fabs(ax==X?y:x);
-//			printf("det:%g, %g %g\n",t->Jdet(xi,eta),xi,eta);
 			return v;
 		}
 		/** get inverse Jacobean at (xi,eta) */

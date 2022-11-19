@@ -1,3 +1,13 @@
+///////////////////////////////////////////////////////////////////////////////
+// poly.cc                                                                   //
+//                                                                           //
+// Implementations for the  poly class represents a set of basis polynomials //
+// for a finite element                                                      //
+//                                                                           //
+// Nick Derr                                                                 //
+// cleanup 01/29/21                                                          //
+///////////////////////////////////////////////////////////////////////////////
+
 #include "poly.hh"
 
 jacobi::jacobi(int p,double a,double b) : max_p(p),alpha(a),beta(b),
@@ -14,14 +24,11 @@ double* legendre::coeffs(int i) {
 
 double* legendre::coeffs(int j,int k) {
 	double *cc=c;
-//	int ans=0;
 	for(int jj=0;jj<=j;jj++) {
 		for(int kk=0;kk<=(j==jj?k-1:p);kk++) {
 			cc+=(jj+1)*(kk+1);
-//			ans+=(jj+1)*(kk+1);
 		}
 	}
-//	printf("%d (%d,%d) -> %lu\n",k+j*(p+1),j,k,cc-c);
 	return cc;
 }
 
@@ -80,12 +87,6 @@ legendre::~legendre() {
 	delete[] cx;
 	delete[] c;
 }
-
-/*
-poly_2d::~poly_2d() {
-	cleanup_coeffs();
-}
-*/
 
 /** helper function for printing out polynomial coefficients */
 void legendre::print_coeffs(int i) {
@@ -180,8 +181,6 @@ void koornwinder::eval(int i,double x,double y,double &f,double &fx,double &fy,
 	fxy = res[1];
 
 	fyy = gsl_poly_eval(cddx,m+1,x);
-
-//	fy = gsl_poly_eval(cdx,m+1,x);
 }
 
 void legendre::eval(int i,double x,double y,double &f,double &fx,double &fy) {
@@ -230,8 +229,6 @@ void legendre::eval(int i,double x,double y,double &f,double &fx,double &fy,
 	fxy = res[1];
 
 	fyy = gsl_poly_eval(cddx,j+1,x);
-
-//	fy = gsl_poly_eval(cdx,j+1,x);
 }
 
 /**  
@@ -354,21 +351,16 @@ void jacobi::jacobi_coeff(int n,double a,double b,double *c,bool keep=false) {
 void koornwinder::koornwinder_part1(int k,int m,double *cm,double *c) {
 
 	double mpre = pow(0.5,m),ppre,jpre,sgn;
-//	double lmpre = m*log(0.5),psgn,ljpre,isgn;
 
 	for(int l=0;l<=m;l++) {
 		for(int p=0;p<=m-l;p++,c++) {
 			*c=0;
 			ppre = p%2==0?1:-1;
-//			psgn = p%2==0?1:-1;
 			for(int j=l;j<=m-p;j++) {
 				jpre = (1<<j)*gsl_sf_choose(m-j,p)*gsl_sf_choose(j,l);
-//				ljpre = j*log(2) + gsl_sf_lnchoose(m-j,p) + gsl_sf_lnchoose(j,l);
 				for (int i=j;i<=m;i++) {
 					sgn = ((i-j)%2==0)?1:-1;
-//					isgn = ((i-j)%2==0)?1:-1;
 					*c += mpre*ppre*jpre*cm[i]*sgn*gsl_sf_choose(i,j);
-//					*c += psgn*isgn*cm[i]*exp(lmpre+ljpre+gsl_sf_lnchoose(i,j));
 				}
 			}
 		}

@@ -26,7 +26,7 @@ class gp_data {
 	/** scalar parts of complex fields */
 	enum class complex_part {real,imag,norm,arg};
 	/** possible scalar fields */
-	enum class scalar {vel_x,vel_y,vel_mag,pres,vort,div,none,err,err_x,err_y,err_xx,err_xy,err_yy};
+	enum class scalar {vel_x,vel_y,vel_mag,pres,vort,div,none};
 	/** possible vector fields */
 	enum class vector {vel,none};
 
@@ -41,21 +41,21 @@ class gp_data {
 
 	/** part of complex field to plot */
 	complex_part part;
-	
 	/** pointer to two_sphere parameters */
 	two_spheres *ts;
 	/** pointer to brinkman solution */
 	brinkman *br;
-
 	/** pointer to Gnuplot instance */
 	Gnuplot *gp;
 
+	// constructors
 	gp_data(char *f_in,double ax_,double ay_,double Lx,double Ly,std::string p="r",
 		bool zi=true,bool r=true): rot(r),zero_inf(zi),
 		ax(ax_),bx(ax+Lx),ay(ay_),by(ay+Ly),part(read_part(p)),
 		ts(two_spheres::load_binary(f_in)),br(brinkman::load_binary(f_in)) {}
 	~gp_data() {}
 
+	/** helper for memory freeing */
 	void free() {delete ts; delete br;}
 
 	// string-to-enum conversions
@@ -74,6 +74,9 @@ class gp_data {
 	mat quiver_mat(const vector &f,int m,int n,double sp=0.8);
 	mat heatmap_mat(const scalar &f,int m,int n);
 
+	/**
+	 * add the sphere outlines to a plot
+	 */
 	void add_circles(PlotGroup &plots) {
 
 		// get circle information
@@ -86,56 +89,52 @@ class gp_data {
 		plots.add_plot1d(circs,"u 1:2:(0):3 w circ fc 'black' lc 'black' lw 3");
 	}
 
+	/**
+	 * add a quiver plot corresponding to the provided vector quantity
+	 */
 	void add_quiver(vector &f,int mm,int nn,PlotGroup &plots,double sp=0.8) {
 		mat dat = quiver_mat(f,mm,nn,sp);
 		plots.add_plot1d(quiver_mat(f,mm,nn),"u 1:2:(0):3:4:(0) with vectors arrowstyle 1");
 	}
 
+	/**
+	 * add a set of streamlines corresponding to the provided vector quantity,
+ 	 * originating on a m x n grid of points
+	 *
+	 * @param f which field to plot
+	 * @param T duration of time to integrate streamlines
+	 * @param tol tolerance for streamline calculations
+	 * @param m rows of streamline origination points
+	 * @param n columns of streamline origination points
+	 * @param plots the group to add plots to
+	 * @param cmds commands to have gnuplot execute
+	 */
 	void add_streamlines(const vector &f,double T,double tol,int m,int n,PlotGroup &plots,std::vector<std::string> &cmds) {
 
-		/*
-		double df = T/nf;
-
-		int per;
-		if (df < dt) {
-			dt = df;
-			per = 1;
-		} else {
-
-			double per_d = df/dt;
-			per = int(per_d);
-			double rem = df - per*dt;
-
-			dt -= rem/(++per);
-
-		}
-		*/
-
-
+		// set up a set of matrices with streamline data
 		std::vector<mat> lines(m*n);
 		for (int i=0;i<lines.size();i++) {
 			lines[i].resize(10,2);
 		}
 
+		// calculate the streamlines
 		calculate_streamlines(f,T,tol,m,n,lines);
 
+		// add each streamline
 		for (int i=0;i<m*n;i++) {
 
+			// add the plot
 			printf("adding plot %d (%d,%d), %d segments\n",i,i%m,i/m,lines[i].rows());
-
-			//printf("%d %d\n",lines[i].rows(),lines[i].cols());
-//			printf("%g %g\n%g %g\n...",lines[i](0,0),lines[i](0,1),lines[i](1,0),lines[i](1,1));
 			plots.add_plot1d(lines[i],"u 1:2:(0) w l lw 1 lc rgbcolor 'black'");
 
+			// for each streamline, add an arrowhead
 			double len = 0.2;
-
 			if (lines[i].rows() > 1) {
 
 				mat arr;
 				arr.resize(1,4);
 
-
-				int ind = 0;// lines[i].rows()-2; //(lines[i].rows()-1) / 2;
+				int ind = 0;
 				double x1 = lines[i](ind  ,0),   y1 = lines[i](ind  ,1);
 				double x2 = lines[i](ind+1,0),   y2 = lines[i](ind+1,1);
 
@@ -147,7 +146,7 @@ class gp_data {
 				double ang = 15;
 				double slen = len*cos(ang*180/M_PI);
 
-
+				// arrow points
 				arr(0,0) = x1 - slen*tx;
 				arr(0,1) = y1 - slen*ty;
 				arr(0,2) = -slen*tx;
@@ -157,18 +156,20 @@ class gp_data {
 				vec_plot << "u 1:2:(0):3:4:(0) w vec lw 1 lc rgbcolor 'black' head filled size first " << len << "," << ang << ",90 fixed";
 
 				plots.add_plot1d(arr,vec_plot.str());
-
-				//printf("%g %g %g %g\n",x1,y1,x2-x1,y2-y1);
-
 			}
-
-			//cmds.emplace_back(arr_cmd.str());
-
 		}
-
-
 	}
 
+	/**
+	 * Calculate a set of streamlines over an m x n grid
+	 *
+	 * @param f which field to plot
+	 * @param T duration to integrate streamline
+	 * @param tol local error for adaptive timestepping
+	 * @param m rows of streamline origination points
+	 * @param n cols of streamline origination points
+	 * @param lines vector of streamlines
+	 */
 	void calculate_streamlines(const vector &f,double T,double tol,
 			int m,int n, std::vector<mat> &lines) {
 
@@ -178,11 +179,12 @@ class gp_data {
 		// loop through data
 		double xx,yy;
 
+		// RK info
 		static const int ns = 4;
-
 		double uu[ns],vv[ns];
 		double xi[ns],yi[ns];
 
+		// Butcher tableau
 		static const double a[ns][ns] = {
 			{    0,    0,    0,    0},
 			{ 1./2,    0,    0,    0},
@@ -192,21 +194,12 @@ class gp_data {
 		static const double b3[ns] = {   2./9, 1./3, 4./9,    0};
 		static const double b2[ns] = {  7./24, 1./4, 1./3, 1./8};
 
-//		static const double a[ns][ns] = {
-//			{    0,    0,    0},
-//			{ 1./3,    0,    0},
-//			{    0, 2./3,    0}
-//		};
-//		static const double b3[ns] = {1./4,   0, 3./4}, b2[ns] = {};
-
+		// for each streamline
 		for (int j=0;j<n;j++) {
-
 			for (int i=0;i<m;i++) {
 
 				printf("(%d/%d) (%d/%d)...",i+1,m,j+1,n);
 				fflush(stdout);
-
-				// lines[i+j*m].resize(nf,2);
 
 				// y-coordinate
 				yy = ay + (j+0.5)*dy;
@@ -258,6 +251,7 @@ class gp_data {
 						}
 
 
+						// grab two estimates for value at next time step
 						double x_star(xx),y_star(yy),x_new(xx),y_new(yy);
 						for (int s=0;s<ns;s++) {
 
@@ -268,15 +262,14 @@ class gp_data {
 							y_new  -= dt * b3[s] * vv[s];
 						}
 
+						// compute difference between the two estimates
+						// for adaptive timestepping
 						ee = sqrt((x_new-x_star)*(x_new-x_star)
 								+ (y_new-y_star)*(y_new-y_star));
 
-						//printf("dt=%g: (%.8g,%.8g) - (%.8g,%.8g) - (%.8g,%.8g)\n",
-						//			dt,xx,yy,x_star,y_star,x_new,y_new);
-
-						//printf("[%g->%g]...",dt,ee);
 						fflush(stdout);
 
+						// either accept or reject the new value
 						if (ee <= tol) {
 
 							xx = x_new;
@@ -293,17 +286,14 @@ class gp_data {
 
 					} while (ee > tol);
 
+				  // store the new value
 					double x1 = lines[i+j*m](pt-1,0);
 					double y1 = lines[i+j*m](pt-1,1);
 					double x2 = xx;
 					double y2 = yy;
 
-					//printf("dt=%g: %g %g %g %g\n",dt,x1,y1,x2,y2);
-
+				  // stop if segment is too short or we reach duration
 					double s = sqrt( (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1) );
-
-					//printf("%g\n",s);
-
 					if (s > ds || t >= T) {
 
 						if (pt == lines[i+j*m].rows()) {
@@ -319,25 +309,37 @@ class gp_data {
 					// check distance from initial point
 					double d0 = sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
 
+				  // if we get far from intial point and then get close
+				  // again, just stop instead of orbiting
 					if (d0 > 3*ds) out = true;
-
 					if (out && d0 < 3*ds) {
 						t = T;
 					}
 				}
 
+				// store, count points, get rid of empty rows
 				lines[i+j*m] = lines[i+j*m].block(0,0,pt,2).eval();
-
 				printf("[%d pts]\n",pt);
 			}
 		}
 	}
 
+	/**
+	 * Add a heat map of the provided scalar field
+	 *
+	 * @param f which field to plot
+	 * @param mm rows
+	 * @param nn columns
+	 * @param plots group of plots to add the heatmap to
+	 * @param cbr colorbar range
+	 */
 	void add_heatmap(scalar &f,int mm,int nn,PlotGroup &plots,
 		double (&cbr)[2]) {
 
+		// calculate heatmap
 		mat dat = heatmap_mat(f,mm,nn);
 
+		// cycle through heatmap, calculating mean
 		double mn = 0, norm=0, vl;
 		for (int jj=0;jj<nn;jj++) {
 			for (int ii=0;ii<mm;ii++) {
@@ -352,6 +354,7 @@ class gp_data {
 		}
 		mn /= norm;
 
+		// cycle through heatmap, calculating std dev
 		norm = 0;
 		double sd = 0;
 		for (int jj=0;jj<nn;jj++) {
@@ -371,14 +374,13 @@ class gp_data {
 
 		printf("%g +/- %g\n",mn,sd);
 		
-
+		// store info in heatmap
 		cbr[0] = mn-sd;
 		cbr[1] = mn+sd;
 
 		int max_log = -1;
 		int min_log = -4;
 		
-
 		std::stringstream inst;
 		inst << "u 1:2:(0):(abs($3)<10**(" << min_log
 			 << ")?0:(sgn($3)*(log10(abs($3))-(" << min_log
@@ -386,24 +388,32 @@ class gp_data {
 		plots.add_plot1d(dat,inst.str());
 	}
 
+	/** add a heatmap to the provided plot group */
 	void add_heatmap(scalar &f,int mm,int nn,PlotGroup &plots) {
 		double trash[2];
 		add_heatmap(f,mm,nn,plots,trash);
 	}
 
+	/** start a new gnuplot image */
 	void start(bool debug=false) {
 		if (debug) gp = new Gnuplot(stdout);
 		else       gp = new Gnuplot();
 	}
 
+	/** finish a gnuplot image */
 	void finish() {delete gp;}
 
+	/** set the plot range */
 	void range() {
 		*gp << "set xrange [" << ax << ":" << bx << "]" << std::endl;
 		*gp << "set yrange [" << ay << ":" << by << "]" << std::endl;
 		*gp << "set clabel \'vorticity\'" << std::endl;
 	}
+
+	/** pass a command to gnuplot */
 	void command(std::string cmd) {*gp << cmd << std::endl;}
+
+	// terminal options
 	void term(std::string term,std::string spec="") {
 		*gp << "set term " << term << " " << spec << std::endl;
 	}
@@ -412,6 +422,9 @@ class gp_data {
 			<< "," << tn << " " << spec << std::endl;
 	}
 
+	/**
+	 * opens a new pdf for plotting
+	 */
 	void pdf_open(std::string fname,double m=4.75) {
 		char sizes[256];
 
@@ -429,17 +442,21 @@ class gp_data {
 		command("set output '" + fname + "'");
 		command(xscl);
 		command(yscl);
-		//command("set palette defined (0. \"#6F0695\", 1./10. \"#9630B8\",2./10. \"#BA58D0\", 3./10. \"#D984DD\",4./10. \"#F0B3DD\", 5./10. \"#FFFFFF\" , 6./10. \"#D6BCE8\" , 7./10. \"#AB95F0\",8./10. \"#7C72E7\",9./10. \"#4B52D0\",1. \"#0F36AB\")");
-//		command("set tmargin at screen 0.95");
-//		command("set rmargin at screen 0.8");
-//		command("set lmargin at screen 0.05");
 	}
+  
+	/**
+	 * opens a new png for plotting
+	 */
 	void png_open(std::string fname,int m=550,int n=600) {
 		term("pngcairo",m,n,"font ',16'");
 		command("set output '" + fname + "'");
 	}
+	/** close file */
 	void close() {command("unset output");}
 
+	/**
+	 * create a heatmap with a quiver plot on top
+	 */
 	void heat_quiver(std::string sca,int sca_m,std::string qui,int qui_m,
 			double (&cbrange)[2]) {
 
@@ -456,16 +473,10 @@ class gp_data {
 		command("unset key");
 
 		command("set style arrow 1 head filled size 0.12,30,90 lw 1.5 lc 'black'");
-//		command("set style arrow 1 nohead lc 'white'");
 		command("set arrow arrowstyle 1");
 
 		// labels
-//		command("set xlabel 'x'");
-//		command("set ylabel 'y'");
-//		command("set title 'velocity magnitude'");
-//		command("set cblabel 'velocity magnitude'");
 		command("set lmargin at screen 0");
-//		command("set rmargin at screen 1");
 		command("unset xtics");
 		command("unset ytics");
 
@@ -474,23 +485,22 @@ class gp_data {
 		int sca_n = (int) (0.5 + sca_m*ar);
 		int qui_n = (int) (0.5 + qui_m*ar);
 
-
 		// collect plots
 		PlotGroup splots = Gnuplot::splotGroup();
 		add_heatmap(s,sca_m,sca_n,splots,cbrange);
-
 		add_circles(splots);
 		add_quiver(v,qui_m,qui_n,splots);
 
+		// print colorbar range
 		printf("%g %g\n",cbrange[0],cbrange[1]);
-
-
-
 
 		// add to gnuplot
 		*gp << splots;
 	}
 
+	/**
+	 * Create a heatmap and overplot with a set of streamlines
+	 */
 	void heat_stream(std::string sca,int sca_m,std::string qui,int sl_m,
 			double sl_T,double sl_tol,
 			double (&cbrange)[2]) {
@@ -507,16 +517,10 @@ class gp_data {
 		command("unset key");
 
 		command("set style arrow 1 head size 0.12,30,90 filled lw 1.5 lc 'black'");
-//		command("set style arrow 1 nohead lc 'white'");
 		command("set arrow arrowstyle 1");
 
 		// labels
-//		command("set xlabel 'x'");
-//		command("set ylabel 'y'");
-//		command("set title 'velocity magnitude'");
-//		command("set cblabel 'velocity magnitude'");
 		command("set lmargin at screen 0");
-//		command("set rmargin at screen 1");
 		command("unset xtics");
 		command("unset ytics");
 
@@ -525,27 +529,20 @@ class gp_data {
 		int sca_n = (int) (0.5 + sca_m*ar);
 		int sl_n = (int) (0.5 + sl_m*ar);
 
-
 		// collect plots
 		PlotGroup splots = Gnuplot::splotGroup();
 		add_heatmap(s,sca_m,sca_n,splots,cbrange);
-
 		add_circles(splots);
-		//add_quiver(v,qui_m,qui_n,splots);
 
 		std::vector<std::string> cmds;
 		add_streamlines(v,sl_T,sl_tol,sl_m,sl_n,splots,cmds);
 
-		//*gp << "set cbrange [" << cbrange[0]/10 <<
-		//	":" << cbrange[1]/10 << "]; unset cblabel\n";
-		//*gp << "set cbrange [*:*]\n";
-		//
 		int min_log = -4;
 		int max_log = -1;
 		int num_log = 2 * ((max_log - min_log) + 1) + 1;
 
+		// tic labels
 		std::stringstream tics;
-
 		tics << "(";
 		for(int l = max_log; l >= min_log; l--) {
 			tics <<  "\"-10^{" << l << "}\" -(" << (0.5+l-min_log) << "),";
@@ -556,10 +553,7 @@ class gp_data {
 		}
 		tics << ")";
 
-
-		//std::string cb_tics = "(\"-10^{-1}\" -4,\"-10^{-3}\" -2,0,\"10^{-3}\" 2,\"10^{-1}\" 4)";
-		//
-
+		// color maps
 		std::string low[] = {"\"#6F0695\"", "\"#9630B8\"", "\"#BA58D0\"", 
 			"\"#D984DD\"", "\"#F0B3DD\""};
 		std::string high[]= {"\"#D6BCE8\"", "\"#AB95F0\"", "\"#7C72E7\"",
@@ -582,14 +576,10 @@ class gp_data {
 			*gp << "," << high_z + (high_v-high_z)*(i+1)/size(high) << " " << high[i];
 		}
 		*gp << ")\n";
-
-		//*gp << "set palette defined (0. \"#6F0695\", 1./10. \"#9630B8\",2./10. \"#BA58D0\", 3./10. \"#D984DD\",4./10. \"#F0B3DD\", 5./10. \"#FFFFFF\" , 6./10. \"#D6BCE8\" , 7./10. \"#AB95F0\",8./10. \"#7C72E7\",9./10. \"#4B52D0\",1. \"#0F36AB\")");
 		*gp << "set cbrange [" << -(0.5+max_log-min_log) << ":" << (0.5+max_log-min_log) << "]; set cbtics " << tics.str() << "\n";
+    
 		// add to gnuplot
 		*gp << splots;
 
-		//for (std::string c : cmds) {
-		//	*gp << c;
-		//}
 	}
 };

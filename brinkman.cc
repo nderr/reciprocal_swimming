@@ -1,3 +1,13 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+// brinkman.c
+//
+// implementations for solving the Brinkman equation
+// 
+// (nabla^2 - alpha^2) u = grad p - f
+//
+///////////////////////////////////////////////////////////////////////////////
+
 #include "brinkman.hh"
 #include <unistd.h>
 
@@ -76,9 +86,6 @@ vcomplex reynolds::operator()(double x,double y) const {
 	vcomplex f = 0.5 * Re * br->u_grad_u(x,y);
 
 	// return real part
-//	f.x = std::real(f.x);
-//	f.y = std::real(f.y);
-
 	return f.real();
 }
 
@@ -1136,8 +1143,6 @@ one_sphere::one_sphere(one_sphere *par,int type):
 		// grab node, assign boundary vel
 		node n(0,0,0,gi+gj*ump,gi,gj);
 		dV_i[n.gj] = par->steady_bvel(n);
-
-//		v += dV_i[n.gj] * ;
 	}
 
 }
@@ -1293,85 +1298,6 @@ vcomplex one_sphere::steady_bvel(node &nb) {
 }
 
 /**
- * Return the analytic solution to the Brinkman equation
- * for the one sphere system moving with velocity V
- *
- * @param[in] V sphere velocity
- * @param[in] a sphere radius
- * @param[in] alpha inverse drag length
- * @param[in] x horizontal coord
- * @param[in] y vertical coord
- * @return the solution at (x,y)
- */
-vcomplex brinkman::brink_exact_sphere(dcomplex V,
-		double a,double alpha,double x,double y) {
-
-	// check for x and y nan (at inf)
-	if ((std::isnan(x) || std::isinf(x)) && (std::isnan(y) || std::isinf(y))) {
-		return vcomplex(0,0);
-	}
-
-	// tolerance for rounding error on boundary
-	static const double tol=1e-10;
-	static const dcomplex nan=std::nan("in sphere")*(1+I);
-
-	// output
-	dcomplex ux,uy;
-
-	// dim'less radial coordinate (return nan if outside sphere)
-	double r = sqrt(x*x+y*y)/a;
-	if (r-1 < -tol) return vcomplex(nan,nan);
-
-	// azimuthal coordinate
-	double th = atan2(y,x);
-
-	// inverse r-cubd
-	double ir3=1./(r*r*r);
-
-	// do Stokes or Brinkman as required
-	if (alpha > 1e-10) {
-
-		// brinkman solution 
-
-		// dim'less, complex alpha, Reynolds number, e^-alpha(1-r)
-		dcomplex al = a*alpha*(1+I)/sqrt(2), Re=al*al, ex=exp(al*(1-r));
-		
-		// radial and polar parts
-		dcomplex ur = 3  *cos(th)*( (1-ex) + al*(1-r*ex)                 )/Re;
-		dcomplex up = 1.5*sin(th)*( (1-ex) + al*(1-r*ex) + Re*(1-r*r*ex) )/Re;
-
-		// x- and y- parts
-		ux = (1 + ur*cos(th) - up*sin(th)) * ir3;
-		uy = (    ur*sin(th) + up*cos(th)) * ir3;
-	} else {
-
-		// stokes solution
-		
-		// radial/polar
-		dcomplex ur =   0.5*(3*r*r - 1)*cos(th);
-		dcomplex up = -0.25*(3*r*r + 1)*sin(th);
-
-		// cartesian
-		ux = (ur*cos(th) - up*sin(th)) * ir3;
-		uy = (ur*sin(th) + up*cos(th)) * ir3;
-	}
-
-	return vcomplex(ux,uy)*V;
-}
-
-/**
- * Return the analytic solution to the Brinkman equation
- * around the one sphere (ignoring the variable boundary vel)
- *
- * @param[in] x horizontal coord
- * @param[in] y vertical coord
- * @return the solution at (x,y)
- */
-vcomplex one_sphere::brink_sol(double x,double y) {
-	return brink_exact_sphere(V_i.x,a,alpha,x,y);
-}
-
-/**
  * Return a new brinkman coarsened in each direction
  * according to the provided factor in each direction
  *
@@ -1456,9 +1382,6 @@ two_spheres::two_spheres(two_spheres* par,dcomplex V,int type):
 		static_cast<tsrc_base<vcomplex>*>(new homog()) :
 		static_cast<tsrc_base<vcomplex>*>(new reynolds(par)),
 	par->mu,0,vcomplex::zero,vcomplex::zero,vcomplex(-V,0)) {
-
-
-//		mesg("wtf\n");
 
 	// don't generate boundary velocities or net stress
 	// if looking at Reynolds stress-only
@@ -1633,98 +1556,6 @@ two_spheres* two_spheres::load_binary(const char *fn) {
 }
 
 /**
- * Return the analytic solution to the Brinkman equation
- * around the two spheres, ignoring the variable boundary vel
- * and any sphere-sphere correction terms
- *
- * @param[in] x horizontal coord
- * @param[in] y vertical coord
- * @return the solution at (x,y)
- */
-vcomplex two_spheres::brink_sol(double x,double y) {
-
-	// tolerance for rounding error on boundary
-	static const double tol=1e-10;
-	static const dcomplex nan=std::nan("in sphere")*(1+I);
-
-	// dim'less left / right radial coord
-	double rr_l = sqrt((x-xl)*(x-xl)+y*y)/rl;
-	double rr_r = sqrt((x-xr)*(x-xr)+y*y)/rr;
-
-	// return nan if we're in either sphere
-	if (((rr_l-1) < -tol) || ((rr_r-1) < -tol)) {
-		return vcomplex(nan,nan);
-	}
-
-	// return sum of two one-sphere solutions
-	return brink_exact_sphere(V_l.x,rl,alpha,x-xl,y)
-		+ brink_exact_sphere(V_r.x,rr,alpha,x-xr,y);
-}
-
-dcomplex two_spheres::drag_coeff(bool approx) {
-
-	if (approx) {
-
-		return -6*M_PI*mu * (rl + rr - 3*rl*rr/d);
-
-	}
-
-	// backup, copy and clear
-	
-	// copy solid vels
-	vcomplex V_l_bak = V_l;
-	vcomplex V_r_bak = V_r;
-	vcomplex V_i_bak = V_inf;
-
-	// boundary vels
-	vcomplex *dV_l_bak = new vcomplex[unp];
-	vcomplex *dV_r_bak = new vcomplex[unp];
-
-	// clear solid vels
-	V_l = V_r = vcomplex(1,0);
-	V_inf = vcomplex::zero;
-	
-	for (int i=0;i<unp;i++) {
-
-		// backup boundary vels
-		dV_l_bak[i] = dV_l[i];
-		dV_r_bak[i] = dV_r[i];
-
-		// clear boundary vels
-		dV_l[i] = vcomplex::zero;
-		dV_r[i] = vcomplex::zero;
-	}
-
-	// backup / replace source
-	tsrc_base<vcomplex> *f_bak = f;
-	f = new homog();
-
-	// solve for drag
-	solve();
-	dcomplex F = drag_force(true) + drag_force(false);
-
-	// reload source
-	delete f;
-	f = f_bak;
-
-	// reload boundary vels
-	for (int i=0;i<unp;i++) {
-		dV_l[i] = dV_l_bak[i];
-		dV_r[i] = dV_r_bak[i];
-	}
-
-	delete[] dV_l_bak;
-	delete[] dV_r_bak;
-
-	// reload solid vels
-	V_l   = V_l_bak;
-	V_r   = V_r_bak;
-	V_inf = V_i_bak;
-
-	return F;
-}
-
-/**
  * given a brinkman solution, calculate the viscous drag
  * force applied to one of the spheres by the fluid
  *
@@ -1745,16 +1576,6 @@ dcomplex two_spheres::drag_force(bool left,bool approx) {
 		v *= (1.5 * (r/d));
 
 		dcomplex F =-6 * M_PI * R * (V-v);
-
-		/*
-	mesg("%s: V=%g + i*%g, Vinf=%g + i*%g -> F=%g + i*%g\n",left?" left":"right",
-			std::real(left?V_l.x:V_r.x),
-			std::imag(left?V_l.x:V_r.x),
-			std::real(V_inf.x),
-			std::imag(V_inf.x),
-			std::real(F),
-			std::imag(F));
-			*/
 		
 		return F;
 	}
@@ -1856,25 +1677,6 @@ dcomplex two_spheres::drag_force(bool left,bool approx) {
 	delete[] vsol;
 	delete[] usol;
 	
-	/*
-	mesg("%s sphere with (Vl,Vr,Vinf)=[%g(%g),%g(%g),%g(%g)]: %g %g\n",
-			left?"left":"right",
-			std::real(V_l.x),std::imag(V_l.x),
-			std::real(V_r.x),std::imag(V_r.x),
-			std::real(V_inf.x),std::imag(V_inf.x),
-			std::real(F),std::imag(F));
-			*/
-
-	/*
-	mesg("%s: V=%g + i*%g, Vinf=%g + i*%g -> F=%g + i*%g\n",left?" left":"right",
-			std::real(left?V_l.x:V_r.x),
-			std::imag(left?V_l.x:V_r.x),
-			std::real(V_inf.x),
-			std::imag(V_inf.x),
-			std::real(F),
-			std::imag(F));
-			*/
-
 	return F;
 
 }
@@ -1889,8 +1691,6 @@ dcomplex two_spheres::drag_force(bool left,bool approx) {
  */
 dcomplex two_spheres::avg_vel(bool left) {
 
-
-//	mesg("start\n");
 
 	// total up x-velocity
 	dcomplex V(0);
@@ -1929,9 +1729,6 @@ dcomplex two_spheres::avg_vel(bool left) {
 		ct_u = dm->alloc_element_geometry(eu);
 
 		// grab vel solution
-//		mesg("a\n");
-//		mesg("%d nodes\n",eu.n_nds);
-//		mesg("b\n");
 		for (node nu:eu) {
 
 			if ( ( left && (nu.li != 0) ) || ( !left && (nu.li != po)) ) {
@@ -1980,8 +1777,6 @@ dcomplex two_spheres::avg_vel(bool left) {
 
 			dcomplex u_r = uu*nx + vv*ny;
 
-//			mesg("%g %g\n",std::real(u_r),std::imag(u_r));
-
 			V += uu * q.w[g] * det;
 			area += q.w[g] * det;
 		}
@@ -1992,304 +1787,9 @@ dcomplex two_spheres::avg_vel(bool left) {
 	delete[] usol;
 
 
-//	mesg("\n");
-
 	V /= area;
-
-//	mesg("avg V_%s = %g + i * %g\n",left?"l":"r",std::real(V),std::imag(V));
-
-//	mesg("V%s = %g + j*%g, A%s = %g, Ac%s = %g\n",left?"_l":"_r",std::real(V),std::imag(V),left?"_l":"_r",area,
-//			left?"_l":"_r",4*M_PI*R*R);
-
-	/*
-
-	mesg("(ux,        uxx,      p,     px): %10.6g %10.6g %10.6g %10.6g\n",std::real(Fux),std::real(Fuxx),std::real(Fp),std::real(Fpx));
-	mesg("(uy,        uxy,     vx,    vxx): %10.6g %10.6g %10.6g %10.6g\n",std::real(Fuy),std::real(Fuxy),std::real(Fvx),std::real(Fvxx));
-	mesg("(ds.n x, ds.n y, s.dn x, s.dn y): %10.6g %10.6g %10.6g %10.6g\n",std::real(F1),std::real(F2),std::real(F3),std::real(F4));
-	// */
 	
 	return V;
-}
-
-/**
- * given a brinkman solution, calculate the viscous drag
- * force applied to one of the spheres by the fluid
- *
- * @param[in] br brinkman solution
- * @param[in] left whether the left sphere (right if false)
- */
-dcomplex two_spheres::osc_force(bool left) {
-
-	/*
-	for(element eu:gr_u) for(node n:eu) {
-		double xi,eta;
-		mast_u.point(n.l,xi,eta);
-		trafo_base *ct_u = dm->alloc_element_geometry(eu);
-		double x,y;
-		ct_u->xi2x(xi,eta,x,y);
-		ux[n.g] = x*x;
-		uy[n.g] = y*y;
-
-		dm->free_element_geometry(ct_u);
-	}
-	*/
-
-	/*
-	for(element ep:gr_p) for(node n:ep) {
-		double xi,eta;
-		mast_p.point(n.l,xi,eta);
-		trafo_base *ct_p = dm->alloc_element_geometry(ep);
-		double x,y;
-		ct_p->xi2x(xi,eta,x,y);
-		p[n.g] = x*y;
-
-		dm->free_element_geometry(ct_p);
-	}
-	*/
-
-	// total up infinitesimal forces
-	dcomplex F(0);
-
-	dcomplex F1(0),F2(0),F3(0),F4(0);
-
-//	dcomplex Fux(0),Fuxx(0),Fp(0),Fpx(0);
-//	dcomplex Fuy(0),Fuxy(0),Fvx(0),Fvxx(0);
-
-	// 1D gauss rule
-	gauss_quad_1d q((gr_u.p+1)/2 + 3);
-
-	// coord trafos
-	trafo_base *ct_p,*ct_u;
-
-	// u,p values and derivatives
-	dcomplex uu,uu_x,uu_y,vv,vv_x,vv_y,pp,pp_x,pp_y;
-	dcomplex uu_xx,uu_xy,uu_yy,vv_xx,vv_xy,vv_yy,pp_xx,pp_xy,pp_yy;
-
-	// solution datapoints
-	dcomplex *usol = new dcomplex[lu],
-		*vsol = new dcomplex[lu],*psol = new dcomplex[lp];
-
-	// Jacobean info / normal vector
-	double det;
-	double x,y;
-	double xi_x,et_x,xi_y,et_y,x_et,y_et;
-	double nx,ny,n2,nx_x,ny_x;
-
-	double area=0;
-	double vol =0;
-
-	// radius
-	double R = left?rl:rr;
-
-//	mesg("%s\n",left?"left!!!":"right!!!");
-
-	// loop over xi_1 and xi_2, i.e. left/right sides of cartesian grid
-	for (int j=0;j<gr_u.n;j++) {
-
-		// element index
-		int i = left ? 0 : (gr_u.m-1);
-
-		// left/right elements
-		element eu = gr_u(i,j);
-		element ep = gr_p(i,j);
-
-		// trafos
-		ct_u = dm->alloc_element_geometry(eu);
-		ct_p = dm->alloc_element_geometry(ep);
-
-		// grab vel solution
-		for (node nu:eu) {
-			usol[nu.l] = ux[nu.g];
-			vsol[nu.l] = uy[nu.g];
-		}
-
-		// ...and p solution
-		for (node np:ep) psol[np.l] = p[np.g];
-
-		// element coords
-		double xi = (left?0:1),et;
-
-		// loop through gauss points
-		for (int g=0;g<q.n;g++) {
-
-			// we're integrating over the eta value
-			et = q.x[g];
-			
-			// get Jacobean info
-			ct_u->Jinv(xi,et,xi_x,et_x,xi_y,et_y);
-			ct_u->xi2x(xi,et,x,y);
-			double tmp_det = xi_x*et_y - et_x*xi_y;
-
-			// get polar value
-			double th = atan2(y,x-(left?xl:xr));
-
-			// construct line segment length
-			x_et =-xi_y/tmp_det;
-			y_et = xi_x/tmp_det; 
-
-			// relevant determinant is 1D in xi-direction
-			det = sqrt(x_et*x_et + y_et*y_et) * fabs(y) * M_PI;
-			
-			// construct normal unit vector
-			// from xi-gradient
-//			nx = xi_x; ny = xi_y;
-
-			// grab normal from position
-			double nnx = x - (left?xl:xr);
-			double nny = y;
-			double nnmag = sqrt(nnx*nnx + nny*nny);
-			nnx /= nnmag; nny /= nnmag;
-
-
-//			if (!left) {nx *= -1; ny *= -1;}
-			
-			// normalize
-//			n2 = nx*nx + ny*ny;
-//			nx /= sqrt(n2);
-//			ny /= sqrt(n2);
-
-//			mesg("%g (%g), %g (%g)\n",nx,nnx,ny,nny);
-
-			nx = nnx; ny = nny;
-
-			// normal derivative
-			// (only this special form here!)
-			nx_x =  ny*ny / R;
-			ny_x = -nx*ny / R;
-
-			// pull out vel and pressure sol'ns
-			mast_u.eval<dcomplex>(*ct_u,xi,et,usol,uu,uu_x,uu_y,uu_xx,uu_xy,uu_yy);
-			mast_u.eval<dcomplex>(*ct_u,xi,et,vsol,vv,vv_x,vv_y,vv_xx,vv_xy,vv_yy);
-			mast_p.eval<dcomplex>(*ct_p,xi,et,psol,pp,pp_x,pp_y,pp_xx,pp_xy,pp_yy);
-
-//			mesg("(x,y)=(%.9g,%.9g): u=%g + i*%g, v=%g + i*%g, u_x=%g + i*%g, u_y=%g + i*%g, v_x=%g + i*%g, u_xx=%g + i*%g, u_xy=%g + i*%g, v_xx=%g + i*%g\n",
-//				x - (left?xl:xr),y,
-//				std::real(uu), std::imag(uu),
-//				std::real(vv), std::imag(vv),
-//				std::real(uu_x), std::imag(uu_x),
-//				std::real(uu_y), std::imag(uu_y),
-//				std::real(vv_x), std::imag(vv_x),
-//				std::real(uu_xx), std::imag(uu_xx),
-//				std::real(uu_xy),std::imag(uu_xy),
-//				std::real(vv_xx),std::imag(vv_xx));
-
-//			mesg("(x,y)=(%.9g,%.9g): p=%g + i*%g, p_x=%g + i*%g, p_y=%g + i*%g\n",
-//				x - (left?xl:xr),y,
-//				std::real(pp), std::imag(pp),
-//				std::real(pp_x), std::imag(pp_x),
-//				std::real(pp_y), std::imag(pp_y));
-
-			/*
-			printf("u_x : %g, v_x : %g, p_x : %g\n",std::real(uu_x), std::real(vv_x), std::real(pp_x));
-			printf("u_y : %g, v_y : %g, p_y : %g\n",std::real(uu_y), std::real(vv_y), std::real(pp_y));
-			printf("u_xx: %g, v_xx: %g, p_xx: %g\n",std::real(uu_xx),std::real(vv_xx),std::real(pp_xx));
-			printf("u_xy: %g, v_xy: %g, p_xy: %g\n",std::real(uu_xy),std::real(vv_xy),std::real(pp_xy));
-			printf("u_yy: %g, v_yy: %g, p_yy: %g\n",std::real(uu_yy),std::real(vv_yy),std::real(pp_yy));
-			*/
-
-			// construct stress tensor x-derivs
-			dcomplex s_xx   = 2*mu* uu_x  - pp;
-			dcomplex s_xx_x = 2*mu* uu_xx - pp_x;
-			dcomplex s_xy   =   mu*(uu_y  + vv_x);
-			dcomplex s_xy_x =   mu*(uu_xy + vv_xx);
-
-//			mesg("(x,y)=(%.9g,%.9g): s_xx=%g + i*%g, s_xx_x=%g + i*%g, s_xy=%g + i*%g, s_xy_x=%g + i*%g\n",
-//				x - (left?xl:xr),y,
-//				std::real(s_xx), std::imag(s_xx),
-//				std::real(s_xx_x), std::imag(s_xx_x),
-//				std::real(s_xy), std::imag(s_xy),
-//				std::real(s_xy_x), std::imag(s_xy_x));
-
-
-			/*
-			printf("-----------------\n");
-			printf("s_xx = %g + i %g\n",std::real(s_xx),std::imag(s_xx));
-			printf("s_xy = %g + i %g\n",std::real(s_xy),std::imag(s_xy));
-			printf("s_xx_x = %g + i %g\n",std::real(s_xx_x),std::imag(s_xx_x));
-			printf("s_xy_x = %g + i %g\n",std::real(s_xy_x),std::imag(s_xy_x));
-			*/
-
-			// construct traction deriv - only care about x-deriv (dots with vel)
-			// of x-coord (y is zero by symmetry)
-
-
-			dcomplex t1,t2,t3,t4;
-			dcomplex tux,tuxx,tp,tpx;
-			dcomplex tuy,tuxy,tvx,tvxx;
-			t1 = s_xx_x * nx;
-			t2 = s_xy_x * ny;
-			t3 = s_xx   * nx_x;
-			t4 = s_xy   * ny_x;
-
-//			mesg("(x,y)=(%.9g,%.9g): t1=%g + i*%g, t2=%g + i*%g, t3=%g + i*%g, t4=%g + i*%g\n",
-//				x - (left?xl:xr),y,
-//				std::real(t1), std::imag(t1),
-//				std::real(t2), std::imag(t2),
-//				std::real(t3), std::imag(t3),
-//				std::real(t4), std::imag(t4));
-
-			/*
-			tux = 2*mu * uu_x * nx_x;
-			tuxx = 2*mu*uu_xx * nx;
-			tp = -pp * nx_x;
-			tpx = -pp_x * nx;
-			tuy = mu * uu_y * ny_x;
-			tuxy = mu*uu_xy * ny;
-			tvx = mu * vv_x * ny_x;
-			tvxx = mu * vv_xx * ny;
-			*/
-
-			dcomplex t_x_x = t1+t2;//+t3+t4;
-
-			// get real part of iU/2 dt/dx
-			
-			dcomplex U = left?V_l.x:V_r.x;
-
-			// piece of traction
-			double d_tr = std::real(0.5 * I * U * std::conj(t_x_x));
-
-//			mesg("(x,y)=(%.9g,%.9g): d_tr=%g\n",
-//				x - (left?xl:xr),y,d_tr);
-
-			// piece of force
-			F += d_tr * q.w[g] * det; 
-			//F += q.w[g] * det; 
-
-//			mesg("%g %g\n",th,d_tr);
-
-			//*
-			F1 += t1 * q.w[g] * det; 
-			F2 += t2 * q.w[g] * det; 
-			F3 += t3 * q.w[g] * det; 
-			F4 += t4 * q.w[g] * det; 
-
-//			mesg("det=%g\n",det);
-
-			area += q.w[g] * det;
-			vol += 0.5*fabs(y) * q.w[g] * det;
-
-			//*/
-
-			// force is x-component of stress
-//			F += (s_xx * nx + s_xy * ny)*q.w[g]*det;
-		}
-
-		dm->free_element_geometry(ct_u);
-		dm->free_element_geometry(ct_p);
-	}
-
-	delete[] psol;
-	delete[] vsol;
-	delete[] usol;
-
-//	mesg("F1=%g + i*%g, F2=%g + i*%g, F3=%g + i*%g, F4=%g + i*%g\n",std::real(F1),std::imag(F1),
-//			std::real(F2),std::imag(F2),
-//			std::real(F3),std::imag(F3),
-//			std::real(F4),std::imag(F4));
-
-//	mesg("area=%g, vol=%g\n",area,vol);
-	
-	return F;
 }
 
 /**
@@ -2302,14 +1802,11 @@ dcomplex two_spheres::osc_force(bool left) {
  */
 void two_spheres::solve_force_balance(dcomplex Fmag) {
 
-//	mesg("alloc petsc solver\n");
 	petsc_solve petsc(this,sol_type);
-//	mesg("done\n");
 
 	// set max iterations, solution tolerance
 	static const int max_its = 100;
 	static const double tol = std::numeric_limits<double>::epsilon()*1e4;
-//	mesg("%g\n",tol);
 	
 	// previous/new velocity, previous force values, differences
 	dcomplex Vl_old,Vr_old,Fl_old,Fr_old,Vl_new,Vr_new,dVl,dVr,dFl,dFr;
@@ -2319,7 +1816,6 @@ void two_spheres::solve_force_balance(dcomplex Fmag) {
 
 	// do 2 solves to estimate Jacobean
 
-//	mesg("solve 1\n");
 
 	// try changing left velocity, get Jacobean from resulting
 	// force values (V=0 => F=0 so get third point for free,
@@ -2327,15 +1823,12 @@ void two_spheres::solve_force_balance(dcomplex Fmag) {
 	// derivs: col index so dF = J.dV
 	Vl = 1; Vr = 0;
 	petsc.solve();
-//	br->solve_petsc_ksp();
 	dcomplex Jll(appl_force(true)),Jrl(appl_force(false));
 	
-//	mesg("solve 2\n");
 
 	// try changing right velocity
 	Vl = 0; Vr = 1;
 	petsc.solve();
-//	br->solve_petsc_ksp();
 	dcomplex Jlr(appl_force(true)),Jrr(appl_force(false));
 
 	// invert Jacobean
@@ -2348,8 +1841,6 @@ void two_spheres::solve_force_balance(dcomplex Fmag) {
 	Vr_new = -Jirl*Fmag+Jirr*Fmag;
 	Vl=Fl=Vr=Fr=0;
 
-//	mesg("starting algo\n");
-	
 	int its=0; //count iterations
 	do {
 
@@ -2359,15 +1850,8 @@ void two_spheres::solve_force_balance(dcomplex Fmag) {
 		// full update
 		Vl=Vl_new; Vr=Vr_new;
 
-//		mesg("solve %d\n",its+2);
-
 		petsc.solve();
-//		br->solve_petsc_ksp();
 		Fl = appl_force(true)+Fmag; Fr = appl_force(false)-Fmag;
-
-//		printf("%g(%g) %g(%g) -> %g(%g) %g(%g)\n",
-//			std::real(Vl),std::imag(Vl),std::real(Vr),std::imag(Vr),
-//			std::real(Fl),std::imag(Fl),std::real(Fr),std::imag(Fr));
 
 		// record diffs
 		dVl = Vl-Vl_old; dVr = Vr-Vr_old;
@@ -2390,10 +1874,6 @@ void two_spheres::solve_force_balance(dcomplex Fmag) {
 		Vl_new = Vl - Jill*Fl - Jilr*Fr;
 		Vr_new = Vr - Jirl*Fl - Jirr*Fr;
 
-		/*
-		mesg("%g %g %g %g\n",
-				std::real(Vl),std::imag(Vl),std::real(Vr),std::imag(Vr));
-				*/
 
 	} while (std::norm(Fl)+std::norm(Fr) > 4*tol*tol && ++its<max_its);
 }
@@ -2404,8 +1884,7 @@ void two_spheres::solve_force_balance(dcomplex Fmag) {
  *
  * @param[in] br the brinkman solution subject to the solve
  */
-// FIXME this is using the WRONG osc force!
-void two_spheres::solve_force_osc() {
+void two_spheres::solve_force_free() {
 
 	petsc_solve petsc(this,sol_type);
 
@@ -2418,78 +1897,14 @@ void two_spheres::solve_force_osc() {
 
 	// grab reference to velocity, do initial solve w/0
 	dcomplex &V = V_inf.x; V = 0;
-//	br->solve_petsc_ksp();
-	petsc.solve();
-	dcomplex F = drag_force(true)+drag_force(false) - osc_force(true) - osc_force(false);
-
-	// do another w/1
-	V = 1;
-//	br->solve_petsc_ksp();
-	petsc.solve();
-	dF = drag_force(true)+drag_force(false) - osc_force(true) - osc_force(false) -F;
-
-	// set up first guess where we expect F=0
-	V_new = -F/dF;
-
-	int its=0; // count iterations
-	do {
-
-		// store old, do solve with new value
-		V_old=V; F_old=F; V=V_new;
-//		br->solve_petsc_ksp();
-		petsc.solve();
-		F = drag_force(true)+drag_force(false) - osc_force(true) - osc_force(false);
-
-		// store diffs
-		dV=V-V_old; dF=F-F_old;
-
-		// secant update
-		V_new = V-F*dV/dF;
-
-	} while (std::norm(F) > 2*tol*tol && +its<max_its);
-}
-
-/**
- * Perform a series of solves on the flow field such that there
- * is no net drag force on the two-sphere system 
- *
- * @param[in] br the brinkman solution subject to the solve
- */
-void two_spheres::solve_force_free(bool approx) {
-
-	petsc_solve petsc(this,sol_type);
-
-	// set max iterations
-	static const int max_its = 100;
-	static const double tol = std::numeric_limits<double>::epsilon()*1e4;
-
-	// new and old, diffs, differences
-	dcomplex V_new,V_old,F_old,dV,dF;
-
-	// grab reference to velocity, do initial solve w/0
-	dcomplex &V = V_inf.x; V = 0;
-//	br->solve_petsc_ksp();
 	petsc.solve();
 	dcomplex F = drag_force(true)+drag_force(false) - F_a.x;
 
 
 	// do another w/1
 	V = 1;
-//	br->solve_petsc_ksp();
 	petsc.solve();
 
-	if (approx) {
-
-//		mesg("a\n");
-
-		dcomplex dF_app = drag_coeff(true) - F_a.x;
-//		mesg("%g\n",std::real(dF_app));
-
-		V = -F / fabs(dF_app);
-//		mesg("c\n");
-
-		return;
-	}
 
 	dF = drag_force(true)+drag_force(false) - F_a.x - F;
 
@@ -2501,7 +1916,6 @@ void two_spheres::solve_force_free(bool approx) {
 
 		// store old, do solve with new value
 		V_old=V; F_old=F; V=V_new;
-//		br->solve_petsc_ksp();
 		petsc.solve();
 		F = drag_force(true)+drag_force(false) - F_a.x;
 
@@ -2540,52 +1954,36 @@ brinkman* two_spheres::coarsen(int cx,int cy) {
 //////////////////////// petsc_solve //////////////////////////
 
 /**
- *
+ * Create and allocate a PETSc solver
  */
 petsc_solve::petsc_solve(brinkman *prob,method type) {
 
 	assign(prob);
 
+	// allocate the grid
 	DM sys;
 	alloc_sys_dmda(prob,sys);
 
+	// create the solver
 	KSPCreate(PETSC_COMM_WORLD,&ksp);
 	KSPSetDM(ksp,sys);
 
+	// note that only LU works
 	switch (type) {
 		case method::lu:    set_lu();    break;
-		case method::schur: set_schur(); break;
-		case method::mg: set_mg(); break;
 	}
 
+	// give functions to compute operators
 	KSPSetComputeOperators(ksp,&calculate_A,(void*)&ctx);
 
-	int mm=ctx.prob->m,levs=1;
-	while (mm > 2) {mm <<= 1; levs++;}
-	if (type==method::mg) {
-		PC pc;
-		KSPGetPC(ksp,&pc);
-		PCMGSetLevels(pc,levs,NULL);
-		PCSetFromOptions(pc);
-	}
 	KSPSetFromOptions(ksp);
 	KSPSetUp(ksp);
-
-	/*
-	Mat P;
-	calculate_Schur_P(ksp,P,(void*)&ctx);
-	PC pc;
-	KSPGetPC(ksp,&pc);
-	PCSetFromOptions(pc);
-	PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_USER,P);
-	PCSetUp(pc);
-	KSPSetUp(ksp);
-	*/
 }
 
+/**
+ * Solve problem
+ */
 void petsc_solve::solve() {
-	
-//	KSPSetUp(ksp);
 
 	KSPSetComputeRHS(ksp,&calculate_B,(void*)&ctx);
 
@@ -2597,6 +1995,9 @@ void petsc_solve::solve() {
 	ctx.prob->read(*this);
 }
 
+/**
+ * Helper function to count nodes on processors
+ */
 void petsc_solve::proc_counts(brinkman *prob,
 	std::vector<int> &lux,std::vector<int> &luy,
 	std::vector<int> &lpx,std::vector<int> &lpy) {
@@ -2646,6 +2047,9 @@ void petsc_solve::proc_counts(brinkman *prob,
 	}
 }
 
+/**
+ * Helper function to find the best processor decomposition
+ */
 void petsc_solve::proc_decomp(brinkman *prob,int &mp,int &np) {
 
 	int size;
@@ -2668,15 +2072,17 @@ void petsc_solve::proc_decomp(brinkman *prob,int &mp,int &np) {
 		int comm = (xcomms * prob->n) + (ycomms * prob->m);
 
 		// store if good if (comm < comm_min) {
-			comm_min=comm;
-			mp_opt=mp; np_opt=np;
+		comm_min=comm;
+		mp_opt=mp; np_opt=np;
 	}
 
 	// use best
 	mp=mp_opt; np=np_opt;
 }
 	
-
+/**
+ * Allocate the grid for the system
+ */
 void petsc_solve::alloc_sys_dmda(brinkman *prob,DM &sys) {
 
 	// u vs p polynomial order
@@ -2723,8 +2129,6 @@ void petsc_solve::alloc_sys_dmda(brinkman *prob,DM &sys) {
 	DMSetUp(sys);
 }
 
-
-
 /**
  * provides command-line args to use LU factorization
  */
@@ -2734,162 +2138,9 @@ void petsc_solve::set_lu(const char* lu_type) {
 	add_opt("-pc_factor_mat_solver_type",lu_type);
 }
 
-void petsc_solve::set_mg(const char* lu_type) {
-
-//	int levs = 4;
-//
-	// opts and tols
-	add_opt("-ksp_rtol","1e-12");
-	add_opt("-ksp_diagonal_scale");
-	add_opt("-ksp_diagonal_scale_fix");
-	add_opt("-ksp_monitor_true_residual");
-
-	// fmgres + mg
-	add_opt("-ksp_type","fgmres");
-	add_opt("-pc_type","mg");
-
-	// fmgres + FS as smoother
-	add_opt("-mg_levels_ksp_type","fgmres");
-	add_opt("-mg_levels_ksp_max_it","3"); // 10
-	add_opt("-mg_levels_pc_type","fieldsplit");
-
-	// schur complement setup
-	add_opt("-mg_levels_pc_fieldsplit_type","schur");
-	add_opt("-mg_levels_pc_fieldsplit_schur_fact_type","full");
-	add_opt("-mg_levels_pc_fieldsplit_schur_precondition","selfp"); // user?
-
-	// just use gauss-seidel in velocity block
-	add_opt("-mg_levels_fieldsplit_vel_ksp_type","richardson");
-	add_opt("-mg_levels_fieldsplit_vel_ksp_max_it","5");
-	add_opt("-mg_levels_fieldsplit_vel_pc_type","sor");
-	add_opt("-mg_levels_fieldsplit_vel_pc_sor","local_forward");
-
-	// GMRES + ASM(ilu) in pressure block
-	add_opt("-mg_levels_fieldsplit_pre_ksp_type","gmres");
-	add_opt("-mg_levels_fieldsplit_pre_pc_type","asm");
-	add_opt("-mg_levels_fieldsplit_pre_ksp_max_it","10");
-}
-
-void petsc_solve::set_schur(const char* lu_type) {
-
-	// opts/tols
-	add_opt("-ksp_rtol","1e-8");
-	add_opt("-ksp_monitor_true_residual");
-//	add_opt("-ksp_diagonal_scale",NULL);
-//	add_opt("-ksp_diagonal_scale_fix",NULL);
-
-	// fmgres w/FS
-	add_opt("-ksp_type","fgmres");
-	add_opt("-pc_type","fieldsplit");
-	add_opt("-pc_fieldsplit_type","schur");
-
-
-	// pressure mass matrix as preconditioner for schur complement
-	Mat P_mass;
-	calculate_p_mass(ksp,P_mass,(void*)&ctx);
-	PC pc;
-	KSPGetPC(ksp,&pc);
-	PCSetFromOptions(pc);
-
-	// this does not work yet FIXME
-	static const bool comp_pc=false;
-	if (comp_pc) {
-
-		KSPSetUp(ksp);
-		
-		KSP *subksps;
-		PCFieldSplitSchurGetSubKSP(pc,NULL,&subksps);
-
-		PC schur_pc;
-		KSPGetPC(subksps[1],&schur_pc);
-
-
-		// build composite
-		PC pc_new;
-		PCSetType(pc_new,PCCOMPOSITE);
-		PCCompositeSetType(pc_new,PC_COMPOSITE_MULTIPLICATIVE);
-//		PCCompositeAddPC(pc_new,PCGAMG);
-//		PCCompositeAddPC(pc_new,PCCOMPOSITE);
-
-		PC pc_add;
-		PCCompositeGetPC(pc_new,1,&pc_add);
-		PCCompositeSetType(pc_add,PC_COMPOSITE_ADDITIVE);
-//		PCCompositeAddPC(pc_add,PCNONE);
-//		PCCompositeAddPC(pc_add,PCGAMG);
-
-		PC pc_mass,pc_stiff;
-		PCCompositeGetPC(pc_new,0,&pc_mass);
-		PCCompositeGetPC(pc_add,1,&pc_stiff);
-
-		Mat P_stiff;
-		calculate_p_stiff(ksp,P_stiff,(void*)&ctx);
-
-		PCSetOperators(pc_mass,P_mass,P_mass);
-		PCSetOperators(pc_stiff,P_stiff,P_stiff);
-
-		KSPSetType(subksps[1],KSPFGMRES);
-		
-		PCGAMGSetType(pc_mass,PCGAMGAGG);
-		PCGAMGSetType(pc_stiff,PCGAMGAGG);
-
-		PCGAMGSetNSmooths(pc_mass,0);
-		PCGAMGSetNSmooths(pc_stiff,0);
-
-
-	} else {
-
-		add_opt("-pc_fieldsplit_schur_fact_type","full");
-		add_opt("-pc_fieldsplit_schur_precondition","user");
-		PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_USER,P_mass);
-
-		// fmgres + AMG in schur block
-		add_opt("-fieldsplit_pre_ksp_type","gmres");
-		add_opt("-fieldsplit_pre_pc_type","mg");
-
-		add_opt("-fieldsplit_pre_pc_gamg_agg_nsmooths","0");
-		add_opt("-fieldsplit_pre_pc_gamg_agg_threshold","0.3");
-
-		// GMRES + asm(ilu) as smoother
-		add_opt("-fieldsplit_pre_mg_levels_ksp_type","richardson");
-		add_opt("-fieldsplit_pre_mg_levels_pc_type","sor");
-		add_opt("-fieldsplit_pre_mg_levels_pc_sor_omega","0.667");
-
-		add_opt("-fieldsplit_pre_mg_coarse_ksp_type","preonly");
-		add_opt("-fieldsplit_pre_mg_coarse_pc_type","lu");
-
-
-		add_opt("-fieldsplit_pre_mg_levels_ksp_max_it","3");
-
-		// tols + opts
-		add_opt("-fieldsplit_pre_ksp_monitor_true_residual");
-		add_opt("-fieldsplit_pre_ksp_rtol","1e-2");
-	}	
-
-	const bool LU=false;
-
-	if (LU) {
-
-		// direct solve in velocity block
-		add_opt("-fieldsplit_vel_ksp_type","preonly");
-		add_opt("-fieldsplit_vel_pc_type","lu");
-	} else {
-
-		add_opt("-fieldsplit_vel_ksp_type","gmres");
-		add_opt("-fieldsplit_vel_pc_type","mg");
-		add_opt("-fieldsplit_vel_pc_mg_levels","7");
-
-		add_opt("-fieldsplit_vel_mg_levels_ksp_type","richardson");
-		add_opt("-fieldsplit_vel_mg_levels_ksp_max_it","10");
-		add_opt("-fieldsplit_vel_mg_levles_pc_type","sor");
-		add_opt("-fieldsplit_vel_mg_levels_ksp_monitor_true_residual");
-		add_opt("-fieldsplit_vel_mg_coarse_ksp_monitor_true_residual");
-		add_opt("-fieldsplit_vel_mg_coarse_ksp_type","preonly");
-		add_opt("-fieldsplit_vel_mg_coarse_pc_type","lu");
-		add_opt("-fieldsplit_vel_ksp_rtol","1e-2");
-	}
-
-}
-
+/**
+ * Calculate the RHS of the system
+ */
 PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 
 	VecZeroEntries(B);
@@ -3002,6 +2253,9 @@ PetscErrorCode petsc_solve::calculate_B(KSP ksp,Vec B,void *ctx) {
 	return 0;
 }
 
+/**
+ * Calculate the mass matrix of the pressure system
+ */
 PetscErrorCode petsc_solve::calculate_p_mass(KSP ksp,Mat &P,void *ctx) {
 
 	// grab brinkman
@@ -3035,6 +2289,9 @@ PetscErrorCode petsc_solve::calculate_p_mass(KSP ksp,Mat &P,void *ctx) {
 	return 0;
 }
 
+/**
+ * Calculate the stiffness matrix of the pressure system
+ */
 PetscErrorCode petsc_solve::calculate_p_stiff(KSP ksp,Mat &P,void *ctx) {
 
 	// grab brinkman
@@ -3067,6 +2324,7 @@ PetscErrorCode petsc_solve::calculate_p_stiff(KSP ksp,Mat &P,void *ctx) {
 }
 
 /**
+ * Calculate the velocity operator
  */
 void petsc_solve::calculate_A_vel(DM da_vel,Mat A,brinkman *par) {
 
@@ -3113,6 +2371,9 @@ void petsc_solve::calculate_A_vel(DM da_vel,Mat A,brinkman *par) {
 	MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);
 }
 
+/**
+ * Calculate the system operator
+ */
 void petsc_solve::calculate_A_sys(DM da_sys,Mat A,brinkman *par) {
 
 	// get coarser brinkman + degrees of freedom
@@ -3204,6 +2465,9 @@ void petsc_solve::calculate_A_sys(DM da_sys,Mat A,brinkman *par) {
 	PetscFree(lis);
 }
 
+/**
+ * Calculate the system operator
+ */
 PetscErrorCode petsc_solve::calculate_A(KSP ksp,Mat A,Mat P,void *ctx) {
 
 	int rank;
@@ -3231,7 +2495,6 @@ PetscErrorCode petsc_solve::calculate_A(KSP ksp,Mat A,Mat P,void *ctx) {
  * initialization function: sets all variables to zero
  */
 void brinkman::reset() {
-#pragma omp parallel for
 	for (int i=0;i<gu;i++) {ux[i]=uy[i]=0; if(i < gp) p[i]=0;}
 }
 

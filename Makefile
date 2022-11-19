@@ -22,8 +22,6 @@ DEBUG:=0
 # 0 off, 1-3 on
 OPT:=3
 
-# 0 complex, 1 real
-REAL:=0
 #######################################
 
 # executables
@@ -47,7 +45,7 @@ stokes_flags=-lgsl
 #####################################
 
 # put together base flags
-cflags=-std=c++17 -fopenmp
+cflags=-std=c++17
 iflags:=
 lflags:=-L.
 xflags:=
@@ -76,10 +74,18 @@ iflags += -I$(gnuplot_io_loc)
 
 # add gsl
 iflags += -I$(gsl_I)
-lflags += -L$(gls_L)
+lflags += -L$(gsl_L)
 
 # add blas
 lflags += -L$(blas_L) $(blas_lflag)
+
+# add boost
+iflags += -I$(boost_I)
+lflags += -L$(boost_L) $(boost_lflags)
+
+# add eigen
+iflags += -I$(eigen_I)
+lflags += -L$(eigen_L)
 
 # optimization/debugging values
 ifeq ($(strip $(DEBUG)),1)
@@ -88,7 +94,6 @@ endif
 oflag=-O$(OPT)
 
 # pull in petsc locations, build libraries
-include Makefile.petsc
 include Makefile.in
 
 # rules for each exectuable
@@ -97,8 +102,12 @@ compile=$(mpicxx) $(flags) -o $@ $<
 lfem=-lgsl -lgslcblas -llapack
 base=-largs -lstokes $(lfem)
 
+solves: $(solves)
+
+stats: $(stats)
+
 $(solves): %: %.cc libargs.a libstokes.a
 	$(compile) $(base) -lpetsc -llapack
 
 $(stats): %: %.cc libargs.a libstokes.a libstats.a
-	$(compile) $(base) -lstats -lpetsc -lboost_iostreams -lboost_filesystem -llapack
+	$(compile) $(base) -lstats -llapack -lpetsc $(boost_lflags)
